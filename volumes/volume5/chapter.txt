@@ -1,0 +1,220 @@
+📘 Volume 05 — NoSQL, Caching & the Modern Data Stack
+🎯 Objective
+
+Move beyond pure relational thinking and become comfortable choosing, designing, and operating the right database for the right job — document stores, caches, and hybrid architectures — the way real production systems are actually built.
+
+Outcome:
+
+After completing this volume, you should be able to:
+Explain when NOT to use PostgreSQL.
+Design MongoDB schemas for real applications.
+Use Redis correctly as a cache, not just a key-value toy.
+Integrate an ORM properly instead of fighting it.
+Design a multi-tenant SaaS data layer.
+Defend a polyglot persistence decision in an interview.
+Chapter 1 — Introduction to NoSQL & Polyglot Persistence
+Topics
+Why NoSQL Exists
+CAP Theorem
+Consistency vs Availability vs Partition Tolerance
+BASE vs ACID
+Types of NoSQL Databases
+Document (MongoDB)
+Key-Value (Redis, DynamoDB)
+Column-Family (Cassandra)
+Graph (Neo4j)
+Polyglot Persistence
+Choosing the Right Database Per Workload
+Chapter 2 — MongoDB Fundamentals
+Topics
+What is MongoDB?
+Documents, Collections, Databases
+BSON vs JSON
+MongoDB Architecture
+Installing MongoDB
+mongosh CLI
+MongoDB Compass
+Connecting from Node.js (Mongoose/native driver)
+Chapter 3 — MongoDB Data Modeling
+Topics
+Embedding vs Referencing
+One-to-One
+One-to-Many
+Many-to-Many
+Schema Design Patterns
+Bucket Pattern
+Polymorphic Pattern
+Attribute Pattern
+Subset Pattern
+Denormalization Trade-offs
+Modeling for Read-Heavy vs Write-Heavy Workloads
+Chapter 4 — MongoDB Querying & Aggregation Framework
+Topics
+CRUD Operations
+Query Operators
+Projection
+Aggregation Pipeline
+$match, $group, $project
+$lookup (joins in MongoDB)
+$unwind
+$facet
+Aggregation vs Application-Layer Processing
+Chapter 5 — MongoDB Indexing & Performance
+Topics
+Single-Field Indexes
+Compound Indexes
+Multikey Indexes
+Text Indexes
+TTL Indexes
+Covered Queries
+explain() in MongoDB
+Common Indexing Mistakes
+Chapter 6 — MongoDB Replication & Sharding
+Topics
+Replica Sets
+Primary/Secondary Elections
+Read Preference
+Write Concern & Read Concern
+Sharding Concepts
+Shard Keys
+Choosing a Good Shard Key
+Chunk Migration
+Chapter 7 — MongoDB Transactions & Consistency
+Topics
+Multi-Document Transactions
+When You Actually Need Transactions
+Session-Based Operations
+Consistency Trade-offs vs PostgreSQL
+Chapter 8 — Caching Fundamentals
+Topics
+Why Caching Exists
+Cache Hit vs Cache Miss
+Latency vs Throughput
+Where Caching Fits in an Architecture
+Chapter 9 — Redis Core
+Topics
+What is Redis?
+Redis as a Key-Value Store
+Installing Redis
+redis-cli
+Persistence: RDB vs AOF
+Connecting from Node.js (ioredis/node-redis)
+Chapter 10 — Redis Data Structures & Use Cases
+Topics
+Strings
+Lists (queues)
+Sets & Sorted Sets (leaderboards, rate limiting)
+Hashes (object caching)
+Pub/Sub
+Streams
+Expiry (TTL)
+Chapter 11 — Caching Strategies & Invalidation
+Topics
+Cache-Aside
+Write-Through
+Write-Behind
+Read-Through
+Cache Invalidation Strategies
+Stale-While-Revalidate
+Thundering Herd Problem
+"There are only two hard things in computer science: cache invalidation and naming things"
+Chapter 12 — ORMs & the Application-Database Boundary
+Topics
+Why ORMs Exist
+Prisma vs TypeORM vs Sequelize vs Mongoose
+Query Builders vs Full ORMs
+N+1 Query Problem
+Eager Loading vs Lazy Loading
+Raw SQL Escape Hatches
+Migration Management via ORM
+When to Bypass the ORM
+Chapter 13 — Database Testing
+Topics
+Why Test the Data Layer
+Testcontainers
+Seeding Test Data
+Testing Migrations (Up and Down)
+Integration Tests vs Unit Tests for Repositories
+Chapter 14 — Multi-Tenant & SaaS Data Architecture
+Topics
+Tenant Isolation Models
+Shared Database, Shared Schema
+Shared Database, Separate Schema
+Separate Database Per Tenant
+Row-Level Tenant Filtering
+Trade-offs for Client Projects
+Chapter 15 — Choosing the Right Database (Decision-Making)
+Topics
+Relational vs Document vs Cache Decision Framework
+Workload Analysis (Read-Heavy, Write-Heavy, Analytical)
+Hybrid Architectures in Real Products
+Case Studies: E-commerce, Social Feed, Booking System
+🚀 Mini Project
+LMS Notifications & Session Layer
+
+Extend your LMS project from previous volumes:
+
+Move session/notification data into MongoDB (better fit than relational).
+Add a Redis cache in front of frequently-read course listings.
+Implement cache invalidation when a course is updated.
+Document why each piece of data lives where it lives.
+🎯 Volume Challenge
+
+Without watching a tutorial:
+
+Take one existing PostgreSQL project (yours or the LMS) and redesign part of it as a polyglot system.
+
+Requirements:
+Identify at least 2 pieces of data better suited to MongoDB than PostgreSQL.
+Move them and justify the decision in writing.
+Add a Redis caching layer for at least 3 hot read paths.
+Measure and document the performance difference (before/after).
+Handle cache invalidation correctly on writes.
+📚 Prerequisites for Volume 06 (AI-Native Databases & Database DevOps)
+
+Before moving on, you should be able to:
+Design a MongoDB schema without copying a tutorial.
+Explain when caching helps and when it introduces bugs.
+Integrate an ORM into a real Node.js backend correctly.
+Reason about tenant isolation for a SaaS product.
+Justify a polyglot persistence decision end-to-end.
+🏆 Capstone Milestone (LMS Project)
+
+Add a polyglot data layer to your LMS:
+MongoDB for unstructured/high-write data (activity logs, notifications).
+Redis caching for hot paths with a documented invalidation strategy.
+An ORM/ODM layer cleanly separating data access from business logic.
+A README section titled "Why this data lives here."
+💼 Career Layer
+
+Push this work to GitHub with clean, meaningful commits, such as:
+feat(db): add MongoDB layer for activity logs
+feat(cache): add Redis cache-aside for course listings
+fix(cache): resolve stale cache on course update
+docs(db): document polyglot persistence decisions
+perf(db): benchmark cached vs uncached course queries
+
+This repository proves you can make real architecture decisions, not just execute a single database technology on command.
+
+🎤 Volume 05 Interview Mastery
+
+By the end of this volume, you should confidently answer questions like:
+
+NoSQL Fundamentals
+What is the CAP theorem and where does PostgreSQL vs MongoDB sit on it?
+When would you choose MongoDB over PostgreSQL?
+What is BASE consistency?
+MongoDB
+How do you model a one-to-many relationship in MongoDB?
+When do you embed vs reference?
+How does sharding work and what makes a good shard key?
+Caching
+Explain cache-aside vs write-through.
+How do you prevent stale cache bugs?
+What is the thundering herd problem and how do you prevent it?
+ORMs
+What is the N+1 query problem and how do you fix it?
+When would you write raw SQL instead of using an ORM?
+Architecture
+How would you design the data layer for a multi-tenant SaaS product?
+Walk me through choosing a database for a new feature.

@@ -1,0 +1,202 @@
+📘 Volume 06 — AI-Native Databases & Database DevOps
+🎯 Objective
+
+Become the engineer who understands both sides of the AI-era divide: the data infrastructure that powers AI features (vector search, RAG), and the operational discipline (DevOps for databases) that AI cannot replace. This is the volume that makes your database skills future-proof rather than commoditized.
+
+Outcome:
+
+After completing this volume, you should be able to:
+Explain what a vector embedding is and why similarity search needs a different index.
+Build a working RAG pipeline using pgvector.
+Critically review AI-generated SQL instead of blindly trusting it.
+Treat database migrations as code, tested and versioned like application code.
+Provision a database with Infrastructure as Code.
+Discuss data governance and compliance like someone accountable for it, not just someone who writes queries.
+Chapter 1 — Vector Embeddings Fundamentals
+Topics
+What is an Embedding?
+Why Text/Images Become Vectors
+Embedding Models (OpenAI, open-source alternatives)
+Distance Metrics
+Cosine Similarity
+Euclidean Distance
+Dot Product
+Dimensionality & Its Cost
+Chapter 2 — Vector Databases & pgvector
+Topics
+Why Traditional Indexes Fail for Similarity Search
+Approximate Nearest Neighbor (ANN) Search
+HNSW vs IVFFlat
+Installing and Using pgvector
+Storing Embeddings in PostgreSQL
+Querying by Similarity
+Purpose-Built Vector DBs (Pinecone, Weaviate, Milvus, Qdrant) vs pgvector
+When to Stay in PostgreSQL vs Go Purpose-Built
+Chapter 3 — Building RAG Pipelines
+Topics
+What is Retrieval-Augmented Generation?
+Chunking Strategies
+Embedding & Storing Documents
+Retrieval Step
+Re-ranking
+Feeding Context to an LLM
+Common RAG Failure Modes
+Chapter 4 — Semantic Search & Hybrid Search
+Topics
+Keyword Search vs Semantic Search
+Combining Full-Text Search with Vector Search
+PostgreSQL Full-Text Search Recap
+Hybrid Ranking Strategies
+Evaluating Search Quality (Recall, Precision)
+Chapter 5 — Natural Language to SQL Systems
+Topics
+How Text-to-SQL Systems Work
+Schema-Aware Prompting
+Guardrails for Generated SQL
+Read-Only Execution Sandboxes
+Where Text-to-SQL Breaks (Ambiguity, Joins, Aggregations)
+Chapter 6 — AI-Assisted Query Review & Validation
+Topics
+Why "the AI wrote it" Is Not a Validation Strategy
+Common Mistakes in LLM-Generated SQL
+Missing Index Awareness
+N+1 Patterns
+Incorrect Join Semantics
+Silent Data Loss (DELETE/UPDATE without WHERE)
+Building a Review Checklist for AI-Generated Queries
+Using AI as a Pair Programmer vs an Authority
+Chapter 7 — Database Migrations as Code
+Topics
+Why Manual Schema Changes Fail in Teams
+Migration Tools (Prisma Migrate, Flyway, Knex, node-pg-migrate)
+Up and Down Migrations
+Zero-Downtime Migration Patterns
+Expand-Contract Pattern
+Backward-Compatible Schema Changes
+Chapter 8 — CI/CD for Databases
+Topics
+Running Migrations in a Pipeline
+Automated Schema Validation
+Database Seeding for Test Environments
+Rollback Strategy in CI/CD
+Blue-Green Deployments for Databases
+Chapter 9 — Infrastructure as Code for Databases
+Topics
+Why Click-Ops Doesn't Scale
+Terraform Fundamentals for Data Infrastructure
+Provisioning a Managed PostgreSQL Instance
+Managing Secrets (DB Credentials) Safely
+Environment Parity (Dev/Staging/Prod)
+Chapter 10 — Managed Cloud Databases
+Topics
+AWS RDS & Aurora
+Supabase
+Neon (Serverless Postgres, Branching)
+PlanetScale
+Choosing a Managed Provider
+Cost vs Control Trade-offs
+Chapter 11 — Distributed SQL & Modern Scaling
+Topics
+Limits of Vertical Scaling
+CockroachDB & YugabyteDB Concepts
+Distributed Consensus (Raft, Simplified)
+When Distributed SQL Is Overkill
+Read Replicas vs True Distribution
+Chapter 12 — Data Governance, Compliance & Security in the AI Era
+Topics
+PII Identification & Classification
+Row-Level Security Revisited
+GDPR-Adjacent Concepts (Right to Erasure, Data Minimization)
+Data Retention Policies
+Audit Logging
+Why Governance Is a Human Judgment Call, Not an AI Task
+Chapter 13 — Observability & AI-Assisted Anomaly Detection
+Topics
+Database Observability Basics (Recap from Volume 04)
+Anomaly Detection on Query Patterns
+AI-Assisted Alerting (Useful vs Noisy)
+Building a Dashboard That Tells a Story, Not Just Numbers
+Chapter 14 — Cost Optimization for Databases
+Topics
+Where Database Cost Actually Comes From
+Storage vs Compute vs I/O Costs
+Right-Sizing Instances
+Query Cost Awareness (Reading Query Plans for Cost, Not Just Speed)
+Archiving Cold Data
+Chapter 15 — Career Capstone: Production AI-Powered Data Platform
+Topics
+Combining Everything: Relational + Cache + Vector + Ops
+Documenting Architecture Decisions (ADRs)
+Presenting the Project in an Interview
+Positioning Yourself as "Database + AI Infrastructure," Not Just "SQL"
+🚀 Mini Project
+LMS Semantic Search
+
+Extend your LMS project one more time:
+
+Add pgvector to your existing PostgreSQL database.
+Embed course descriptions and store the vectors.
+Build a "find similar courses" semantic search feature.
+Add a basic guardrail layer that rejects unsafe generated SQL if you expose any natural-language query feature.
+🎯 Volume Challenge
+
+Without watching a tutorial:
+
+Build a small RAG-powered feature end-to-end.
+
+Requirements:
+Ingest a set of documents (your own DevOps Bible or resume notes work well).
+Chunk and embed them.
+Store embeddings in pgvector.
+Build a retrieval + LLM-answer pipeline.
+Add at least one guardrail (read-only DB access, input validation, or output filtering).
+Write up 5 ways this pipeline could fail in production and how you'd mitigate each.
+📚 Prerequisites for Volume 07 (if you continue: Data Engineering / Analytics — OLAP, dbt, warehousing)
+
+Before moving on, you should be able to:
+Explain vector search to a non-technical interviewer in one minute.
+Build a working RAG pipeline without a template.
+Identify at least three ways an AI-generated SQL query can be wrong.
+Write a zero-downtime migration plan for a live table.
+Provision a managed database using Terraform.
+Explain your database platform choice in terms of cost, not just features.
+🏆 Capstone Milestone (LMS Project)
+
+Ship the "AI-native" version of your LMS:
+Semantic search over courses using pgvector.
+Migrations managed as code, running in CI.
+Infrastructure provisioned via Terraform (or documented as if it were).
+A written governance note: what data is sensitive, and how it's protected.
+An architecture diagram showing relational + cache + vector layers together.
+💼 Career Layer
+
+Push this work to GitHub with clean, meaningful commits, such as:
+feat(ai): add pgvector extension and embedding column
+feat(search): implement semantic course search
+feat(ci): run migrations in pipeline before deploy
+docs(governance): document PII handling and retention policy
+infra(terraform): provision managed Postgres instance
+docs(architecture): add ADR for polyglot + vector data layer
+
+This is the repository that separates "knows SQL" from "can design the data layer for an AI-era product" — lead with it in interviews.
+
+🎤 Volume 06 Interview Mastery
+
+By the end of this volume, you should confidently answer questions like:
+
+Vector & AI Infrastructure
+What is a vector embedding and why can't a B-tree index it efficiently?
+Explain HNSW at a high level.
+Walk me through a RAG pipeline you've built.
+When would you use pgvector vs a dedicated vector database?
+Working With AI Tools
+What's wrong with blindly trusting AI-generated SQL?
+How would you build guardrails around a natural-language-to-SQL feature?
+Database DevOps
+What is the expand-contract pattern and why does it matter for zero-downtime deploys?
+How do you run migrations safely in a CI/CD pipeline?
+Why use Infrastructure as Code for databases instead of manual setup?
+Governance & Judgment
+How would you identify and protect PII in a schema?
+Why is data governance still a human responsibility even with AI tools available?
+Give an example of a database cost optimization you'd make and why.
