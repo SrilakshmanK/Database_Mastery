@@ -1,0 +1,383 @@
+📘 Volume 03 — SQL Interview Mastery & Query Engineering
+🎯 Objective
+
+Master SQL problem solving, analytical thinking, and query optimization for technical interviews and real-world backend development.
+
+Outcome
+
+After completing this volume, you should be able to:
+
+Solve Easy → Hard SQL interview questions.
+Write clean and optimized SQL.
+Explain your approach during interviews.
+Debug incorrect queries.
+Optimize slow SQL.
+Handle real-world reporting and analytics queries.
+Chapter 1 — SQL Thinking
+Topics
+Thinking in Sets instead of Loops
+Relational Thinking
+Understanding Query Execution
+Reading Questions Carefully
+Breaking SQL Problems into Steps
+Writing Queries Incrementally
+Debugging SQL Queries
+Explaining Your SQL
+Chapter 2 — SELECT Mastery
+Topics
+SELECT
+DISTINCT
+Aliases
+Expressions
+Literals
+ORDER BY
+LIMIT
+OFFSET
+FETCH FIRST
+Pagination
+Practice
+
+40 Questions
+
+Chapter 3 — Filtering Mastery
+Topics
+WHERE
+IN
+NOT IN
+BETWEEN
+LIKE
+ILIKE
+EXISTS
+NOT EXISTS
+IS NULL
+IS NOT NULL
+ANY
+ALL
+Practice
+
+40 Questions
+
+Chapter 4 — Aggregate Functions
+Topics
+COUNT
+SUM
+AVG
+MIN
+MAX
+GROUP BY
+HAVING
+DISTINCT Aggregates
+Practice
+
+50 Questions
+
+Chapter 5 — JOIN Mastery
+Topics
+INNER JOIN
+LEFT JOIN
+RIGHT JOIN
+FULL JOIN
+CROSS JOIN
+SELF JOIN
+Multiple Table Joins
+Join Order
+Join Performance
+Practice
+
+70 Questions
+
+Chapter 6 — Subqueries
+Topics
+Scalar Subqueries
+Correlated Subqueries
+EXISTS
+NOT EXISTS
+IN
+Nested Queries
+Practice
+
+40 Questions
+
+Chapter 7 — Common Table Expressions
+Topics
+CTE
+Multiple CTEs
+Recursive CTE
+Recursive Hierarchies
+Practice
+
+25 Questions
+
+Chapter 8 — Window Functions
+Topics
+OVER()
+PARTITION BY
+ORDER BY
+ROW_NUMBER()
+RANK()
+DENSE_RANK()
+NTILE()
+LAG()
+LEAD()
+FIRST_VALUE()
+LAST_VALUE()
+Practice
+
+60 Questions
+
+Chapter 9 — CASE Statements
+Topics
+CASE
+Conditional Aggregation
+Dynamic Labels
+Business Logic
+Practice
+
+25 Questions
+
+Chapter 10 — Date & Time Problems
+Topics
+DATE
+TIMESTAMP
+AGE()
+EXTRACT()
+DATE_TRUNC()
+INTERVAL
+Time Series Queries
+Practice
+
+30 Questions
+
+Chapter 11 — String Problems
+Topics
+CONCAT
+LENGTH
+TRIM
+LOWER
+UPPER
+REPLACE
+SUBSTRING
+SPLIT_PART
+Regular Expressions (Basics)
+Practice
+
+25 Questions
+
+Chapter 12 — Advanced SQL
+Topics
+UNION
+UNION ALL
+INTERSECT
+EXCEPT
+Pivoting (Concept)
+Unpivoting (Concept)
+Recursive Queries
+Dynamic SQL (Introduction)
+Chapter 13 — Query Optimization
+Topics
+EXPLAIN
+EXPLAIN ANALYZE
+Sequential Scan
+Index Scan
+Bitmap Scan
+Reading Execution Plans
+Optimizing JOINs
+Optimizing GROUP BY
+Optimizing ORDER BY
+Avoiding N+1 Queries
+Chapter 14 — Real Business Problems
+Topics
+
+Build SQL for
+
+E-commerce Reports
+Banking Reports
+Sales Analytics
+Inventory Reports
+Employee Reports
+LMS Reports
+Food Delivery Analytics
+Hospital Analytics
+Chapter 15 — SQL Design Questions
+Topics
+Design a Leaderboard
+Design Shopping Cart Queries
+Design LMS Reports
+Design Banking Statements
+Design User Analytics
+Design Recommendation Queries
+Chapter 16 — SQL Anti-Patterns
+Topics
+SELECT *
+Missing Indexes
+Too Many Indexes
+Correlated Subqueries Everywhere
+Cartesian Products
+Duplicate Data
+NULL Mistakes
+Bad Naming
+Overusing DISTINCT
+Chapter 17 — SQL Debugging
+Topics
+Empty Results
+Duplicate Rows
+Wrong JOIN
+Wrong GROUP BY
+Incorrect Aggregation
+NULL Bugs
+Performance Problems
+Chapter 18 — Company Interview Patterns
+Topics
+
+Common SQL patterns asked by:
+
+Amazon
+Microsoft
+Google
+Meta
+Uber
+Walmart
+Oracle
+Goldman Sachs
+
+Problem categories
+
+Ranking
+Running Total
+Consecutive Days
+Top N
+Second Highest
+Duplicate Detection
+Missing Records
+Employee Hierarchy
+Gap Analysis
+Session Analysis
+🧪 Hands-on Labs
+Solve 200+ SQL problems.
+Rewrite slow queries using better approaches.
+Compare JOIN vs Subquery solutions.
+Analyze execution plans with EXPLAIN ANALYZE.
+Build analytical reports from raw data.
+Explain each solution aloud as if you were in an interview.
+🚀 Mini Project
+SQL Analytics Portfolio
+
+Using your LMS database:
+
+Create 50–100 real-world SQL reports, for example:
+
+Top-selling courses
+Student completion rates
+Instructor revenue
+Monthly enrollments
+Active users
+Course ratings
+Revenue trends
+Most popular categories
+Daily active learners
+Drop-off analysis
+
+For each report:
+
+Write the SQL query.
+Explain your approach.
+Note the time complexity or performance considerations.
+Optimize it if needed.
+🎯 Volume Challenge
+
+Without using AI or searching for solutions:
+
+Solve 100 consecutive SQL interview problems.
+
+Rules:
+
+Read the problem.
+Design the query on paper.
+Write the SQL.
+Test it.
+Optimize it.
+Explain it aloud.
+
+Maintain a journal of mistakes and what you learned from each one.
+
+📚 Prerequisites for Volume 04
+
+Before moving on, you should be able to:
+
+Solve medium SQL problems in under 20 minutes.
+Solve hard SQL problems with structured reasoning.
+Use window functions confidently.
+Explain every query you write.
+Read execution plans.
+Optimize basic performance issues.
+🏆 Capstone Milestone (LMS Project)
+
+Build a /reports module for your LMS project containing:
+
+Dashboard queries
+Analytics reports
+Leaderboards
+Revenue reports
+Student progress reports
+Query optimization notes
+Benchmark results using EXPLAIN ANALYZE
+💼 Career Layer
+
+Create a public GitHub repository called something like:
+
+sql-interview-mastery
+
+Organize it like this:
+
+/01-select
+/02-filtering
+/03-joins
+/04-group-by
+/05-window-functions
+/06-cte
+/07-subqueries
+/08-company-questions
+/09-optimization
+
+Each problem should include:
+
+Problem statement (or link if copyright applies)
+SQL solution
+Explanation
+Alternate solution (if applicable)
+Optimization notes
+Key learning points
+
+This repository becomes proof of your SQL proficiency and is valuable to discuss in interviews.
+
+🎤 Volume 03 Interview Mastery
+
+By the end of this volume, you should be answer and solve without hesitation:
+
+SQL Concepts
+WHERE vs HAVING
+UNION vs UNION ALL
+EXISTS vs IN
+DELETE vs TRUNCATE vs DROP
+COUNT(*) vs COUNT(column)
+RANK() vs DENSE_RANK() vs ROW_NUMBER()
+LEFT JOIN vs INNER JOIN
+CTE vs Subquery
+Window Functions vs GROUP BY
+Query Writing
+Find the second highest salary.
+Find duplicate records.
+Find employees without managers.
+Top 3 salaries per department.
+Running total.
+Moving average.
+Consecutive login days.
+Most purchased products.
+Customers with no orders.
+Monthly revenue.
+Cohort analysis (basic).
+Performance
+Why is this query slow?
+Which index would you add?
+How would you optimize this query?
+What does this execution plan indicate?

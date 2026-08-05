@@ -1,0 +1,368 @@
+📘 Volume 02 — PostgreSQL Mastery
+🎯 Objective
+
+Learn PostgreSQL from the ground up and become comfortable building, querying, managing, and optimizing relational databases for real-world backend applications.
+
+Outcome:
+
+After completing this volume, you should be able to:
+
+Build databases from scratch.
+Write complex SQL confidently.
+Design schemas for real applications.
+Optimize slow queries.
+Use PostgreSQL effectively in backend projects.
+Answer PostgreSQL-specific interview questions.
+Chapter 1 — Introduction to PostgreSQL
+Topics
+What is PostgreSQL?
+Why PostgreSQL?
+PostgreSQL vs MySQL
+PostgreSQL vs MongoDB
+PostgreSQL Architecture
+PostgreSQL Ecosystem
+Installing PostgreSQL
+pgAdmin
+psql CLI
+Creating your first database
+Chapter 2 — PostgreSQL Fundamentals
+Topics
+Databases
+Schemas
+Tables
+Rows
+Columns
+Naming Conventions
+PostgreSQL Data Types
+INTEGER
+BIGINT
+SERIAL
+BOOLEAN
+VARCHAR
+TEXT
+DATE
+TIMESTAMP
+UUID
+JSONB
+ARRAY
+Chapter 3 — Table Design
+Topics
+CREATE TABLE
+ALTER TABLE
+DROP TABLE
+TRUNCATE
+Choosing Data Types
+Default Values
+Auto Increment (SERIAL vs IDENTITY)
+Comments on Tables & Columns
+Chapter 4 — Constraints
+Topics
+PRIMARY KEY
+FOREIGN KEY
+UNIQUE
+CHECK
+NOT NULL
+DEFAULT
+ON DELETE CASCADE
+ON DELETE SET NULL
+ON UPDATE CASCADE
+Chapter 5 — CRUD Operations
+Topics
+INSERT
+Single Row
+Multiple Rows
+INSERT RETURNING
+SELECT
+Selecting Columns
+Aliases
+UPDATE
+DELETE
+RETURNING Clause
+Chapter 6 — Filtering Data
+Topics
+WHERE
+AND
+OR
+NOT
+BETWEEN
+IN
+EXISTS
+ANY
+ALL
+LIKE
+ILIKE
+NULL Handling
+IS NULL
+IS NOT NULL
+Chapter 7 — Sorting & Pagination
+Topics
+ORDER BY
+ASC
+DESC
+LIMIT
+OFFSET
+Pagination
+Keyset Pagination
+Chapter 8 — SQL Functions
+Topics
+
+Aggregate Functions
+
+COUNT
+SUM
+AVG
+MAX
+MIN
+
+String Functions
+
+LOWER
+UPPER
+CONCAT
+TRIM
+LENGTH
+
+Date Functions
+
+NOW()
+CURRENT_DATE
+AGE()
+EXTRACT()
+
+Math Functions
+
+ROUND
+CEIL
+FLOOR
+Chapter 9 — Grouping Data
+Topics
+GROUP BY
+HAVING
+DISTINCT
+GROUPING Logic
+Chapter 10 — Joins
+Topics
+INNER JOIN
+LEFT JOIN
+RIGHT JOIN
+FULL OUTER JOIN
+CROSS JOIN
+SELF JOIN
+
+Practice every join visually.
+
+Chapter 11 — Advanced Queries
+Topics
+Subqueries
+Correlated Subqueries
+Common Table Expressions (CTE)
+Recursive CTE
+CASE
+COALESCE
+NULLIF
+Chapter 12 — Window Functions
+Topics
+OVER()
+ROW_NUMBER()
+RANK()
+DENSE_RANK()
+NTILE()
+LEAD()
+LAG()
+FIRST_VALUE()
+LAST_VALUE()
+Chapter 13 — Views
+Topics
+Views
+Materialized Views
+Refreshing Materialized Views
+Chapter 14 — Transactions
+Topics
+BEGIN
+COMMIT
+ROLLBACK
+SAVEPOINT
+Transaction Isolation Levels
+Deadlocks (Basics)
+Chapter 15 — Indexing
+Topics
+Creating Indexes
+Composite Indexes
+Unique Indexes
+Partial Indexes
+Expression Indexes
+Hash Index
+B-Tree Index
+GIN Index (Introduction)
+GiST Index (Introduction)
+Chapter 16 — Query Optimization
+Topics
+EXPLAIN
+EXPLAIN ANALYZE
+Sequential Scan
+Index Scan
+Bitmap Scan
+Reading Execution Plans
+Improving Query Performance
+Chapter 17 — PostgreSQL Advanced Features
+Topics
+UUID
+ENUM
+JSONB
+ARRAY
+Generated Columns
+UPSERT (ON CONFLICT)
+RETURNING
+Common Extensions (e.g., uuid-ossp, pgcrypto)
+Chapter 18 — Functions & Triggers
+Topics
+User-defined Functions
+Stored Procedures
+Triggers
+BEFORE Trigger
+AFTER Trigger
+Chapter 19 — Backup & Restore
+Topics
+pg_dump
+pg_restore
+Database Export
+Database Import
+Basic Backup Strategy
+Chapter 20 — PostgreSQL Security
+Topics
+Users
+Roles
+Permissions
+GRANT
+REVOKE
+Basic Authentication
+Password Security
+Chapter 21 — PostgreSQL in Backend Applications
+Topics
+Connecting from Node.js
+Connection Pooling
+Environment Variables
+Prepared Statements
+Transactions in Applications
+Database Migrations
+Seeding Data
+
+(You can later adapt these concepts to Java/Spring Boot or other backends.)
+
+🧪 Hands-on Labs
+Install PostgreSQL and connect using both psql and pgAdmin.
+Create a database from scratch.
+Design and build an E-commerce database.
+Write CRUD queries for all tables.
+Practice every type of JOIN using sample data.
+Solve 100 SQL practice problems.
+Create and compare different indexes.
+Use EXPLAIN ANALYZE to optimize a slow query.
+Store and query JSONB data.
+Build and call a stored procedure.
+Create a trigger to update timestamps automatically.
+Back up and restore a database.
+🚀 Mini Project
+LMS Database Implementation
+
+Using the design from Volume 01:
+
+Implement the complete PostgreSQL database.
+
+Include
+Database creation
+Schemas
+Tables
+Constraints
+Relationships
+Seed data
+Indexes
+Views
+Transactions
+Triggers
+Sample reports
+Performance testing with EXPLAIN ANALYZE
+🎯 Volume Challenge
+
+Without watching a tutorial:
+
+Build the database for a production-style application, such as:
+
+Learning Management System
+Food Delivery
+Banking
+Hospital
+E-commerce
+
+Requirements:
+
+Design schema
+Implement in PostgreSQL
+Add realistic seed data
+Write 50+ SQL queries
+Add indexes
+Optimize at least five slow queries
+Document every design decision
+📚 Prerequisites for Volume 03 (SQL Interview Mastery)
+
+Before moving on, you should be able to:
+
+Design relational schemas in PostgreSQL.
+Write complex SQL without referring to notes.
+Understand execution plans.
+Choose appropriate indexes.
+Use transactions correctly.
+Build a complete PostgreSQL database for a real application.
+Integrate PostgreSQL into a backend project.
+🏆 Capstone Milestone (LMS Project)
+
+Complete the database layer for your LMS project:
+
+Implement the finalized schema in PostgreSQL.
+Seed realistic data.
+Create indexes based on expected query patterns.
+Document the purpose of each index.
+Add migration scripts.
+Store reusable SQL scripts in a /database directory.
+💼 Career Layer
+
+Push your PostgreSQL work to GitHub with clean, meaningful commits, such as:
+
+feat(db): create initial LMS schema
+feat(db): add enrollment and lesson tables
+feat(db): implement foreign key constraints
+perf(db): add indexes for course search
+docs(db): explain indexing strategy
+feat(db): add trigger for updated_at timestamps
+
+This repository becomes strong evidence that you can design, implement, and maintain a real relational database—not just write isolated SQL queries.
+
+🎤 Volume 02 Interview Mastery
+
+By the end of this volume, you should confidently answer questions such as:
+
+PostgreSQL Basics
+Why PostgreSQL over MySQL?
+What are PostgreSQL's strengths?
+What is JSONB and when would you use it?
+SQL
+WHERE vs HAVING
+UNION vs UNION ALL
+DELETE vs TRUNCATE vs DROP
+EXISTS vs IN
+CHAR vs VARCHAR vs TEXT
+COUNT(*) vs COUNT(column)
+Performance
+What is an index?
+Why not index every column?
+How do you find a slow query?
+What does EXPLAIN ANALYZE show?
+Transactions
+What happens if a transaction fails?
+What are isolation levels?
+How do PostgreSQL transactions work?
+Real-World Design
+Why did you create this index?
+Why did you choose these data types?
+Why did you use JSONB instead of a separate table?
+How would you scale this schema as the application grows?

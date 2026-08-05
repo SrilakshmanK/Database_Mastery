@@ -1,0 +1,415 @@
+📘 Volume 04 — Advanced PostgreSQL & Database Engineering
+🎯 Objective
+
+Understand how PostgreSQL works internally, how to optimize it, scale it, secure it, monitor it, and operate it in production environments.
+
+Outcome
+
+After completing this volume, you should be able to:
+
+Design production-ready PostgreSQL databases.
+Debug slow database issues.
+Scale PostgreSQL applications.
+Tune PostgreSQL performance.
+Operate PostgreSQL safely in production.
+Understand what happens inside PostgreSQL.
+Chapter 1 — PostgreSQL Internal Architecture
+Topics
+PostgreSQL Process Architecture
+Client-Server Communication
+Postmaster Process
+Background Workers
+Backend Processes
+Shared Memory
+Buffer Manager
+WAL Writer
+Checkpointer
+Autovacuum Worker
+Statistics Collector
+System Catalogs
+Chapter 2 — Storage Engine
+Topics
+Heap Storage
+Pages
+Blocks
+Tuples
+TOAST Storage
+FSM (Free Space Map)
+Visibility Map
+Page Layout
+Tuple Header
+MVCC Storage Basics
+
+Understand how PostgreSQL physically stores data.
+
+Chapter 3 — MVCC (One of PostgreSQL's Biggest Features)
+Topics
+What is MVCC?
+Why PostgreSQL Uses MVCC
+Snapshot Isolation
+Tuple Visibility
+xmin
+xmax
+Dead Tuples
+Vacuum
+HOT Updates
+
+Interview Questions
+
+What is MVCC?
+Why doesn't PostgreSQL lock every row?
+Why is VACUUM needed?
+Chapter 4 — WAL (Write Ahead Logging)
+Topics
+What is WAL?
+Why WAL Exists
+Crash Recovery
+WAL Files
+Checkpoints
+Recovery Process
+
+Interview
+
+What happens if the server crashes?
+Chapter 5 — Vacuum & Maintenance
+Topics
+VACUUM
+VACUUM FULL
+ANALYZE
+Autovacuum
+REINDEX
+CLUSTER
+
+Understand
+
+Why PostgreSQL databases grow.
+
+Chapter 6 — Query Planner & Optimizer
+Topics
+Planner
+Optimizer
+Cost Estimation
+Sequential Scan
+Index Scan
+Bitmap Scan
+Nested Loop
+Merge Join
+Hash Join
+
+Practice
+
+Read dozens of execution plans.
+
+Chapter 7 — Advanced Indexing
+Topics
+B-tree
+Hash
+GIN
+GiST
+BRIN
+SP-GiST
+Bloom Index
+Partial Index
+Expression Index
+Covering Index
+
+Know when to choose each.
+
+Chapter 8 — Locking
+Topics
+Table Locks
+Row Locks
+Shared Locks
+Exclusive Locks
+Deadlocks
+Lock Monitoring
+Lock Timeout
+
+Practice
+
+Create deadlocks intentionally.
+
+Chapter 9 — Connection Management
+Topics
+Database Connections
+Connection Lifecycle
+Connection Limits
+Connection Pooling
+PgBouncer
+Pgpool-II
+Idle Connections
+
+Interview
+
+Why not create 10,000 connections?
+
+Chapter 10 — Replication
+Topics
+Physical Replication
+Logical Replication
+Streaming Replication
+Synchronous
+Asynchronous
+Read Replicas
+Failover
+Promotion
+Chapter 11 — High Availability
+Topics
+HA Architecture
+Primary
+Standby
+Automatic Failover
+Patroni
+Keepalived (Concept)
+Split Brain
+Chapter 12 — Partitioning
+Topics
+Why Partition?
+Range Partition
+List Partition
+Hash Partition
+Partition Pruning
+
+Interview
+
+Partition vs Sharding
+
+Chapter 13 — Scaling PostgreSQL
+Topics
+
+Vertical Scaling
+
+Horizontal Scaling
+
+Read Replicas
+
+Caching
+
+Connection Pooling
+
+Partitioning
+
+Sharding Concepts
+
+CQRS (Introduction)
+
+Chapter 14 — Backup & Disaster Recovery
+Topics
+Logical Backup
+Physical Backup
+Continuous Backup
+Point-in-Time Recovery
+Recovery Testing
+Backup Verification
+Chapter 15 — PostgreSQL Security
+Topics
+Authentication
+pg_hba.conf
+SSL
+Roles
+Permissions
+Row-Level Security
+Encryption
+Secrets Management
+Chapter 16 — Monitoring
+Topics
+pg_stat_activity
+pg_stat_statements
+Slow Query Logs
+Database Metrics
+Connection Metrics
+Locks
+Cache Hit Ratio
+
+Tools
+
+Prometheus
+Grafana
+pgAdmin
+pgBadger
+Chapter 17 — Performance Tuning
+Topics
+shared_buffers
+work_mem
+maintenance_work_mem
+effective_cache_size
+random_page_cost
+max_connections
+checkpoint tuning
+
+Learn
+
+How PostgreSQL configuration affects performance.
+
+Chapter 18 — PostgreSQL Extensions
+Topics
+uuid-ossp
+pgcrypto
+pg_stat_statements
+PostGIS
+citext
+hstore
+Chapter 19 — JSON & Semi-Structured Data
+Topics
+JSON
+JSONB
+Operators
+JSON Indexing
+Hybrid Schemas
+When to Use JSONB
+When Not to Use JSONB
+Chapter 20 — Full-Text Search
+Topics
+tsvector
+tsquery
+Ranking
+Dictionaries
+Search Optimization
+Chapter 21 — Production Best Practices
+Topics
+Naming Standards
+Migration Strategy
+Zero-Downtime Migrations
+Data Validation
+Schema Versioning
+Rollback Strategy
+Documentation
+Chapter 22 — Common Production Problems
+Topics
+Slow Queries
+Deadlocks
+Connection Exhaustion
+Table Bloat
+Missing Indexes
+Disk Full
+Replication Lag
+Long Transactions
+
+For each problem:
+
+Symptoms
+Root Cause
+Diagnosis
+Resolution
+Prevention
+🧪 Hands-on Labs
+Install PostgreSQL on Linux.
+Configure PostgreSQL manually.
+Analyze execution plans for complex queries.
+Create and resolve a deadlock.
+Set up PgBouncer.
+Configure streaming replication with a primary and replica.
+Create partitioned tables.
+Benchmark different index types.
+Simulate a database crash and perform recovery.
+Monitor PostgreSQL with Prometheus and Grafana.
+Tune PostgreSQL configuration and compare performance.
+Restore a database using Point-in-Time Recovery.
+🚀 Mini Project
+Production PostgreSQL Deployment
+
+Deploy a production-style PostgreSQL environment.
+
+Include:
+
+Primary server
+Read replica
+Automated backups
+Monitoring dashboard
+Connection pooling
+Performance tuning
+Security hardening
+Disaster recovery documentation
+🎯 Volume Challenge
+
+Take your LMS database from previous volumes and make it production-ready.
+
+Requirements:
+
+Optimize slow queries.
+Add appropriate indexes.
+Configure connection pooling.
+Partition a large table (e.g., enrollments or logs).
+Implement backup and recovery procedures.
+Set up monitoring and alerts.
+Write an operations runbook for common incidents.
+📚 Prerequisites for Volume 05
+
+Before moving on, you should be able to:
+
+Explain PostgreSQL internals.
+Diagnose common production issues.
+Read execution plans confidently.
+Tune PostgreSQL for performance.
+Understand replication and high availability.
+Secure and monitor a PostgreSQL deployment.
+🏆 Capstone Milestone (LMS Project)
+
+Transform your LMS into a production-grade database system:
+
+Optimized schema
+Migration scripts
+Indexing strategy
+Monitoring dashboards
+Backup automation
+Performance benchmarks
+Operational documentation
+💼 Career Layer
+
+Create a GitHub repository such as:
+
+postgresql-production-lab
+
+Suggested structure:
+
+/01-internals
+/02-indexing
+/03-mvcc
+/04-replication
+/05-partitioning
+/06-monitoring
+/07-performance
+/08-security
+/09-disaster-recovery
+/docs
+
+Include:
+
+SQL scripts
+Docker Compose environments
+Architecture diagrams
+Benchmark reports
+Troubleshooting notes
+Runbooks
+
+This repository demonstrates production engineering skills, not just SQL knowledge.
+
+🎤 Volume 04 Interview Mastery
+
+By the end of this volume, you should confidently answer questions like:
+
+PostgreSQL Internals
+What is MVCC?
+Why does PostgreSQL need VACUUM?
+What is WAL?
+What happens during a COMMIT?
+What is Autovacuum?
+Performance
+How do you optimize a slow query?
+How do you choose the right index?
+What is a covering index?
+Why is a sequential scan sometimes faster than an index scan?
+Concurrency
+Explain row-level locking.
+What causes deadlocks?
+How do isolation levels affect behavior?
+Scalability
+Partitioning vs Sharding
+Read replicas vs Connection pooling
+Vertical vs Horizontal scaling
+Physical vs Logical replication
+Operations
+How would you recover from a server crash?
+How would you monitor PostgreSQL?
+How would you investigate high CPU usage?
+How would you reduce replication lag?

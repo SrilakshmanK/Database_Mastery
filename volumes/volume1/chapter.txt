@@ -1,0 +1,322 @@
+📘 Volume 01 — Database Fundamentals
+🎯 Objective
+
+Build a strong understanding of how relational databases work before learning PostgreSQL or advanced SQL.
+
+Outcome:
+After completing this volume, you should be able to:
+
+Explain database concepts confidently in interviews.
+Design normalized relational databases.
+Understand why databases are designed the way they are.
+Read database documentation.
+Think like a database engineer instead of only writing SQL queries.
+Chapter 1 — Introduction to Databases
+Topics
+What is Data?
+What is a Database?
+What is a DBMS?
+Why Databases Exist
+Problems with File Systems
+DBMS vs File System
+Types of Databases
+Relational
+NoSQL
+Graph
+Key-Value
+Document
+Database Architecture
+Client–Server Architecture
+Database Users (DBA, Developer, End User)
+Chapter 2 — Relational Database Fundamentals
+Topics
+What is an RDBMS?
+Tables
+Rows
+Columns
+Records
+Tuples
+Attributes
+Domains
+Schema
+Database Instance
+Cardinality
+Degree
+Metadata
+Chapter 3 — Keys & Constraints
+Topics
+Keys
+Super Key
+Candidate Key
+Primary Key
+Alternate Key
+Composite Key
+Foreign Key
+Natural Key
+Surrogate Key
+Constraints
+PRIMARY KEY
+FOREIGN KEY
+UNIQUE
+CHECK
+NOT NULL
+DEFAULT
+Referential Integrity
+Chapter 4 — Relationships & ER Modeling
+Topics
+One-to-One
+One-to-Many
+Many-to-Many
+Self Relationship
+Weak Relationship
+Strong Relationship
+Cardinality
+Participation
+ER Diagram
+Entity
+Attribute
+Relationship
+ER Diagram Symbols
+Mapping ER to Tables
+Chapter 5 — Database Design
+Topics
+Designing Tables
+Choosing Primary Keys
+Choosing Data Types
+Identifying Relationships
+Avoiding Data Redundancy
+Database Naming Conventions
+Real-world Database Design
+Chapter 6 — Normalization
+Topics
+Functional Dependency
+Partial Dependency
+Transitive Dependency
+1NF
+2NF
+3NF
+BCNF
+4NF (Overview)
+5NF (Overview)
+Denormalization
+Trade-offs Between Normalization & Performance
+Chapter 7 — SQL Language Categories (Theory)
+Topics
+DDL
+CREATE
+ALTER
+DROP
+TRUNCATE
+DML
+INSERT
+UPDATE
+DELETE
+DQL
+SELECT
+DCL
+GRANT
+REVOKE
+TCL
+BEGIN
+COMMIT
+ROLLBACK
+SAVEPOINT
+Chapter 8 — Transactions
+Topics
+What is a Transaction?
+Why Transactions Matter
+Transaction Lifecycle
+COMMIT
+ROLLBACK
+SAVEPOINT
+Auto Commit
+Transaction Failures
+Chapter 9 — ACID Properties
+Topics
+Atomicity
+Consistency
+Isolation
+Durability
+Real-world Banking Example
+Chapter 10 — Concurrency Control
+Topics
+Concurrent Transactions
+Dirty Read
+Non-repeatable Read
+Phantom Read
+Lost Update
+Isolation Levels
+Locking
+Deadlocks (Introduction)
+Chapter 11 — Indexing
+Topics
+Why Indexes Exist
+Sequential Scan
+Index Scan
+B-Tree Index
+Hash Index
+Clustered vs Non-clustered Index
+Composite Index
+Unique Index
+When Not to Use Indexes
+Chapter 12 — Query Processing
+Topics
+How SQL Queries Execute
+Query Optimizer
+Execution Plan
+Cost-Based Optimization
+Reading Execution Plans (Conceptually)
+Chapter 13 — Database Objects
+Topics
+Views
+Materialized Views
+Sequences
+Stored Procedures (Concept)
+Functions
+Triggers
+Cursors (Overview)
+Chapter 14 — Database Security
+Topics
+Authentication
+Authorization
+Roles
+Privileges
+SQL Injection
+Prepared Statements
+Principle of Least Privilege
+Chapter 15 — Backup & Recovery
+Topics
+Why Backups Matter
+Full vs Incremental Backup
+Recovery Concepts
+Replication (Overview)
+High Availability (Introduction)
+Chapter 16 — Database Engineering Best Practices
+Topics
+Database Naming Conventions
+Table Design Best Practices
+Choosing Data Types
+Avoiding Duplicate Data
+Designing for Scalability
+Documentation for Databases
+🧪 Hands-on Labs
+Compare a file system and a database by storing the same data in both.
+Draw an ER diagram for a Library Management System.
+Design a database for a Movie Ticket Booking System.
+Normalize an unnormalized dataset to 3NF.
+Identify keys and constraints for an E-commerce schema.
+Explain ACID properties using a banking transaction example.
+Design indexes for a sample application and justify your choices.
+Read PostgreSQL documentation on transactions and summarize it.
+🚀 Mini Project
+Database Design Portfolio
+
+Design three complete databases (no coding yet):
+
+Project 1
+
+Library Management System
+
+Project 2
+
+Hospital Management System
+
+Project 3
+
+Online Learning Platform
+
+For each project:
+
+Requirements
+Entities
+ER Diagram
+Tables
+Keys
+Constraints
+Relationships
+Normalization (up to 3NF)
+Suggested Indexes
+Design Decisions document
+🎯 Volume Challenge
+
+Choose a real-world application (e.g., Netflix, Amazon, Spotify, Swiggy).
+
+Without searching for its schema:
+
+Identify entities.
+Draw the ER diagram.
+Normalize the design.
+Explain why you chose each relationship and key.
+Defend your design as if you were in a technical interview.
+📚 Prerequisites for Volume 02 (PostgreSQL)
+
+Before moving on, you should be able to:
+
+Explain all types of keys and constraints.
+Design normalized relational databases.
+Draw ER diagrams confidently.
+Explain ACID properties.
+Describe transactions and concurrency.
+Explain how indexes improve performance.
+Understand how SQL fits into database theory.
+🏆 Capstone Milestone (LMS Project)
+
+Before writing any SQL:
+
+Design the complete LMS database.
+Identify all entities (Users, Courses, Lessons, Enrollments, Payments, etc.).
+Draw the ER diagram.
+Normalize to 3NF.
+Document your design decisions.
+List the indexes you plan to create later in PostgreSQL.
+
+Store everything in a /database-design folder inside your LMS repository.
+
+💼 Career Layer
+
+Push your database designs to GitHub with meaningful commits.
+
+Examples:
+
+docs: add ER diagram for LMS database
+design: normalize course and enrollment tables to 3NF
+docs: document primary and foreign key decisions
+docs: explain indexing strategy for user and course tables
+
+This demonstrates to recruiters that you don't just know SQL—you understand database design and engineering.
+
+🎤 Volume 01 Interview Mastery
+
+By the end of this volume, you should be able to answer, without notes, questions like:
+
+Database Basics
+What is a DBMS?
+DBMS vs File System?
+SQL vs NoSQL?
+What is an RDBMS?
+Keys & Constraints
+Primary Key vs Unique Key?
+Candidate Key vs Super Key?
+Natural Key vs Surrogate Key?
+Can a foreign key be NULL?
+Why use constraints?
+Design
+What is normalization?
+Explain 1NF, 2NF, and 3NF.
+What is denormalization?
+Design a database for a food delivery app.
+SQL Theory
+DDL vs DML vs DQL vs DCL vs TCL.
+DELETE vs TRUNCATE vs DROP.
+COMMIT vs ROLLBACK.
+What is a transaction?
+Performance
+What is an index?
+Why not index every column?
+Clustered vs Non-clustered Index.
+How does a query find data?
+Reliability
+Explain ACID.
+What is a deadlock?
+What is a dirty read?
+What are isolation levels?
