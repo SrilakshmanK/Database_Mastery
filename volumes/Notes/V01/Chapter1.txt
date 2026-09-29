@@ -1,0 +1,9 @@
+What is data, and what is the difference between data and information?
+
+Data is a representation of facts, measurements, observations, events, or values. Data by itself may not provide meaningful context. When we add
+context and meaning to data, it becomes information.
+
+Can you give me a real-world example of data and information?
+
+172 is just a number. It could represent height, weight, or a count, but without context, we don't know what it means. When we add the context 
+"Height: 172", it becomes understandable information.
