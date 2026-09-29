@@ -1,0 +1,3044 @@
+# DB V02 — PostgreSQL & SQL Foundations
+
+## Database Engineering Roadmap — Volume 02
+
+---
+
+# 0. Volume Purpose
+
+In DB V01, we learned **how to think about databases**.
+
+Now we make those concepts real.
+
+This volume introduces **PostgreSQL** as our primary relational database and **SQL** as the language we use to interact with it.
+
+The goal is not to memorize hundreds of SQL commands.
+
+The goal is to understand the complete path:
+
+```text
+Application Requirement
+        ↓
+Database Schema
+        ↓
+SQL
+        ↓
+PostgreSQL
+        ↓
+Stored Data
+        ↓
+Query Result
+```
+
+By the end of this volume, you should be comfortable creating a PostgreSQL database, designing tables, inserting and modifying data, retrieving information, joining related tables, using transactions, and building a small real database-backed system.
+
+---
+
+# 1. Where V02 Fits
+
+Our progression is:
+
+```text
+DB V01
+Database Fundamentals
+        ↓
+DB V02
+PostgreSQL + SQL Foundations
+        ↓
+DB V03
+SQL + Query Engineering
+        ↓
+DB V04
+PostgreSQL Internals + Production
+```
+
+This separation is intentional.
+
+We will **not** turn V02 into an advanced SQL optimization course.
+
+We will first become fluent with the fundamentals.
+
+---
+
+# 2. Prerequisites
+
+You should understand from V01:
+
+* Database vs DBMS
+* Tables
+* Rows
+* Columns
+* Schema
+* Primary keys
+* Foreign keys
+* Relationships
+* Constraints
+* Normalization
+* Transactions
+* ACID
+* Basic indexing concepts
+
+You do **not** need prior PostgreSQL experience.
+
+---
+
+# 3. Learning Environment
+
+We will use:
+
+### PostgreSQL
+
+Primary relational database.
+
+### PostgreSQL Client
+
+We will learn:
+
+* `psql`
+* graphical database clients when useful
+
+### Ubuntu
+
+Because your DevOps environment is Ubuntu-first.
+
+### Git
+
+Database work should be version-controlled.
+
+Eventually:
+
+```text
+database-project/
+├── README.md
+├── schema/
+├── migrations/
+├── seed/
+├── queries/
+└── docs/
+```
+
+---
+
+# 4. Volume Chapters
+
+## Chapter 01 — PostgreSQL Mental Model
+
+## Chapter 02 — PostgreSQL Installation & Environment
+
+## Chapter 03 — PostgreSQL Architecture at User Level
+
+## Chapter 04 — Connecting to PostgreSQL
+
+## Chapter 05 — Databases, Schemas & Namespaces
+
+## Chapter 06 — Creating Tables
+
+## Chapter 07 — Data Types
+
+## Chapter 08 — Constraints
+
+## Chapter 09 — INSERT & Data Creation
+
+## Chapter 10 — SELECT & Reading Data
+
+## Chapter 11 — Filtering, Sorting & Limiting
+
+## Chapter 12 — NULL & Three-Valued Logic
+
+## Chapter 13 — UPDATE & DELETE
+
+## Chapter 14 — Aggregate Functions
+
+## Chapter 15 — GROUP BY & HAVING
+
+## Chapter 16 — Joins
+
+## Chapter 17 — Subqueries & Query Composition Fundamentals
+
+## Chapter 18 — Dates, Times & Strings
+
+## Chapter 19 — PostgreSQL Transactions
+
+## Chapter 20 — PostgreSQL Functions & Useful Features
+
+## Chapter 21 — Database Users, Roles & Permissions
+
+## Chapter 22 — PostgreSQL Backup & Restore Basics
+
+## Chapter 23 — Application ↔ PostgreSQL Integration
+
+## Chapter 24 — Database Development Workflow
+
+## Chapter 25 — Mini-Project: PostgreSQL Application Database
+
+## Chapter 26 — Final Review & Engineering Assessment
+
+---
+
+# CHAPTER 01 — POSTGRESQL MENTAL MODEL
+
+## 1.1 What Is PostgreSQL?
+
+PostgreSQL is an open-source relational database management system.
+
+It provides:
+
+* data storage
+* SQL
+* transactions
+* concurrency control
+* constraints
+* indexes
+* security
+* recovery
+* extensibility
+
+But remember:
+
+> PostgreSQL is not SQL.
+
+SQL is a language.
+
+PostgreSQL is a database system that implements SQL and provides many additional capabilities.
+
+---
+
+# 1.2 SQL vs PostgreSQL
+
+Think:
+
+```text
+SQL
+ ↓
+Language / rules for communicating with relational databases
+
+PostgreSQL
+ ↓
+Actual database system implementing SQL
+```
+
+Similar idea:
+
+```text
+HTTP
+ ↓
+Protocol
+
+Web server
+ ↓
+Software implementing HTTP
+```
+
+The distinction matters.
+
+---
+
+# 1.3 PostgreSQL in Your Backend
+
+Your future architecture may look like:
+
+```text
+React
+   ↓
+FastAPI
+   ↓
+PostgreSQL
+```
+
+or:
+
+```text
+React
+   ↓
+Node.js / Express
+   ↓
+PostgreSQL
+```
+
+PostgreSQL becomes the persistent data layer.
+
+---
+
+# CHAPTER 02 — POSTGRESQL INSTALLATION & ENVIRONMENT
+
+## 2.1 Ubuntu Installation
+
+On Ubuntu, PostgreSQL can be installed through the package manager.
+
+Typical workflow:
+
+```bash
+sudo apt update
+sudo apt install postgresql postgresql-contrib
+```
+
+Check the service:
+
+```bash
+sudo systemctl status postgresql
+```
+
+Start it if necessary:
+
+```bash
+sudo systemctl start postgresql
+```
+
+Enable it on boot:
+
+```bash
+sudo systemctl enable postgresql
+```
+
+Verify:
+
+```bash
+psql --version
+```
+
+---
+
+# 2.2 Why Learn the Service
+
+This connects database engineering with your Linux knowledge.
+
+PostgreSQL is not just:
+
+```text
+"an application I type SQL into"
+```
+
+It is a system process running on the machine.
+
+Later, this understanding becomes important for:
+
+* Docker
+* AWS
+* monitoring
+* troubleshooting
+* Kubernetes
+* production databases
+
+---
+
+# 2.3 Verify the Installation
+
+Useful commands:
+
+```bash
+systemctl status postgresql
+```
+
+```bash
+psql --version
+```
+
+```bash
+sudo -u postgres psql
+```
+
+---
+
+# CHAPTER 03 — POSTGRESQL ARCHITECTURE AT USER LEVEL
+
+We don't need deep PostgreSQL internals yet.
+
+That belongs in V04.
+
+For now understand the major pieces.
+
+```text
+Client
+  ↓
+PostgreSQL Server
+  ↓
+Database
+  ↓
+Schemas
+  ↓
+Tables
+  ↓
+Rows
+```
+
+---
+
+# 3.1 PostgreSQL Server
+
+The PostgreSQL server process accepts client connections and performs database operations.
+
+---
+
+# 3.2 Client
+
+A client communicates with PostgreSQL.
+
+Examples:
+
+```text
+psql
+pgAdmin
+DBeaver
+Application code
+```
+
+---
+
+# 3.3 Database
+
+A PostgreSQL server can contain multiple databases.
+
+Conceptually:
+
+```text
+PostgreSQL Server
+│
+├── database_a
+├── database_b
+└── database_c
+```
+
+---
+
+# 3.4 Schema
+
+Inside a database, schemas provide namespaces.
+
+Example:
+
+```text
+my_database
+│
+├── public
+│   ├── users
+│   ├── orders
+│   └── products
+│
+└── analytics
+    ├── reports
+    └── metrics
+```
+
+We'll explore this properly later.
+
+---
+
+# CHAPTER 04 — CONNECTING TO POSTGRESQL
+
+## 4.1 psql
+
+`psql` is PostgreSQL's command-line client.
+
+Example:
+
+```bash
+psql -U postgres
+```
+
+Depending on your Ubuntu authentication configuration, you may use:
+
+```bash
+sudo -u postgres psql
+```
+
+---
+
+# 4.2 Connection Mental Model
+
+When your application connects:
+
+```text
+Application
+     ↓
+PostgreSQL Driver
+     ↓
+Connection
+     ↓
+PostgreSQL Server
+```
+
+The connection contains information such as:
+
+```text
+Host
+Port
+Database
+Username
+Password
+```
+
+Typical PostgreSQL port:
+
+```text
+5432
+```
+
+---
+
+# 4.3 Connection String
+
+Conceptually:
+
+```text
+postgresql://username:password@host:5432/database
+```
+
+Never commit credentials into Git.
+
+Use environment variables/configuration.
+
+Example:
+
+```env
+DATABASE_URL=postgresql://...
+```
+
+The actual secret should not be committed.
+
+---
+
+# 4.4 Useful psql Commands
+
+Inside `psql`:
+
+```text
+\l
+```
+
+List databases.
+
+```text
+\c database_name
+```
+
+Connect to a database.
+
+```text
+\dt
+```
+
+List tables.
+
+```text
+\d table_name
+```
+
+Describe a table.
+
+```text
+\du
+```
+
+List roles.
+
+```text
+\q
+```
+
+Exit.
+
+These are client commands, not SQL.
+
+That distinction is useful:
+
+```text
+SQL command
+SELECT ...
+
+psql command
+\dt
+```
+
+---
+
+# CHAPTER 05 — DATABASES, SCHEMAS & NAMESPACES
+
+## 5.1 Create a Database
+
+Example:
+
+```sql
+CREATE DATABASE shop_db;
+```
+
+Connect:
+
+```text
+\c shop_db
+```
+
+---
+
+# 5.2 Schema
+
+PostgreSQL databases normally contain a default `public` schema.
+
+Example:
+
+```sql
+CREATE SCHEMA inventory;
+```
+
+Then:
+
+```text
+shop_db
+ ├── public
+ └── inventory
+```
+
+---
+
+# 5.3 Why Schemas Exist
+
+Schemas provide organization and namespaces.
+
+For example:
+
+```text
+public.users
+analytics.sales
+inventory.products
+```
+
+Two schemas can contain tables with the same name:
+
+```text
+sales.orders
+archive.orders
+```
+
+This becomes useful in larger systems.
+
+---
+
+# 5.4 Don't Overcomplicate Schemas
+
+At this stage, don't create ten schemas just because PostgreSQL supports them.
+
+For small applications:
+
+```text
+public
+```
+
+is often enough.
+
+Learn the concept now.
+
+Use complexity only when there is a reason.
+
+---
+
+# CHAPTER 06 — CREATING TABLES
+
+Now we start writing SQL.
+
+---
+
+# 6.1 Basic Table
+
+```sql
+CREATE TABLE users (
+    id INTEGER,
+    name TEXT,
+    email TEXT
+);
+```
+
+This creates:
+
+```text
+users
+├── id
+├── name
+└── email
+```
+
+---
+
+# 6.2 Primary Key
+
+Better:
+
+```sql
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY,
+    name TEXT,
+    email TEXT
+);
+```
+
+Now `id` uniquely identifies each row.
+
+---
+
+# 6.3 Generated IDs
+
+PostgreSQL supports identity columns.
+
+Example:
+
+```sql
+CREATE TABLE users (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL
+);
+```
+
+This allows PostgreSQL to generate identifiers automatically.
+
+---
+
+# 6.4 Create Related Tables
+
+```sql
+CREATE TABLE customers (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL
+);
+```
+
+Then:
+
+```sql
+CREATE TABLE orders (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    customer_id BIGINT NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    FOREIGN KEY (customer_id)
+        REFERENCES customers(id)
+);
+```
+
+Now the relationship exists in the database.
+
+---
+
+# CHAPTER 07 — DATA TYPES
+
+Choosing appropriate data types matters.
+
+---
+
+# 7.1 Integer Types
+
+Common:
+
+```text
+SMALLINT
+INTEGER
+BIGINT
+```
+
+Use a type based on expected range.
+
+Don't automatically use the largest type everywhere.
+
+---
+
+# 7.2 Numeric Values
+
+For exact decimal values:
+
+```text
+NUMERIC
+DECIMAL
+```
+
+For example:
+
+```sql
+price NUMERIC(10,2)
+```
+
+Useful for monetary values.
+
+---
+
+# 7.3 Text
+
+PostgreSQL provides:
+
+```text
+TEXT
+VARCHAR
+CHAR
+```
+
+In many PostgreSQL applications, `TEXT` is perfectly reasonable unless you have a specific reason to impose a length constraint.
+
+---
+
+# 7.4 Boolean
+
+```sql
+is_active BOOLEAN
+```
+
+Values:
+
+```text
+TRUE
+FALSE
+```
+
+---
+
+# 7.5 Date and Time
+
+Important types:
+
+```text
+DATE
+TIME
+TIMESTAMP
+TIMESTAMPTZ
+```
+
+For application systems, timezone-aware timestamps are often preferable when the actual moment in time matters.
+
+We will explore this more deeply through practical examples.
+
+---
+
+# 7.6 UUID
+
+PostgreSQL supports UUIDs.
+
+Useful when distributed systems or externally exposed identifiers make them appropriate.
+
+Don't treat UUIDs as automatically better than integers.
+
+The choice depends on requirements.
+
+---
+
+# 7.7 JSONB
+
+PostgreSQL can store structured JSON data using `jsonb`.
+
+Example:
+
+```sql
+metadata JSONB
+```
+
+This becomes useful when integrating flexible application data.
+
+But:
+
+> Don't use JSONB as an excuse to avoid proper schema design.
+
+Use relational columns when the data is relational and needs relational guarantees.
+
+---
+
+# CHAPTER 08 — CONSTRAINTS
+
+Constraints turn business rules into database-enforced rules.
+
+---
+
+# 8.1 NOT NULL
+
+```sql
+name TEXT NOT NULL
+```
+
+The column cannot be NULL.
+
+---
+
+# 8.2 UNIQUE
+
+```sql
+email TEXT UNIQUE
+```
+
+Duplicate emails are rejected.
+
+---
+
+# 8.3 CHECK
+
+```sql
+price NUMERIC(10,2)
+    CHECK (price >= 0)
+```
+
+---
+
+# 8.4 DEFAULT
+
+```sql
+created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+```
+
+---
+
+# 8.5 FOREIGN KEY
+
+```sql
+customer_id BIGINT
+REFERENCES customers(id)
+```
+
+---
+
+# 8.6 Combined Example
+
+```sql
+CREATE TABLE products (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name TEXT NOT NULL,
+    price NUMERIC(10,2) NOT NULL CHECK (price >= 0),
+    stock INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0),
+    sku TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+This is much stronger than:
+
+```sql
+CREATE TABLE products (
+    id INTEGER,
+    name TEXT,
+    price TEXT,
+    stock TEXT
+);
+```
+
+---
+
+# CHAPTER 09 — INSERT & DATA CREATION
+
+## 9.1 Insert One Row
+
+```sql
+INSERT INTO products (name, price, stock, sku)
+VALUES ('Keyboard', 1500.00, 20, 'KB001');
+```
+
+---
+
+# 9.2 Insert Multiple Rows
+
+```sql
+INSERT INTO products (name, price, stock, sku)
+VALUES
+    ('Keyboard', 1500.00, 20, 'KB001'),
+    ('Mouse', 700.00, 50, 'MS001'),
+    ('Monitor', 12000.00, 10, 'MN001');
+```
+
+---
+
+# 9.3 Return Generated Values
+
+PostgreSQL can return inserted data:
+
+```sql
+INSERT INTO products (name, price, stock, sku)
+VALUES ('Laptop', 60000, 5, 'LP001')
+RETURNING id;
+```
+
+This is very useful in backend applications.
+
+---
+
+# 9.4 Insert From Another Query
+
+PostgreSQL supports:
+
+```sql
+INSERT INTO ...
+SELECT ...
+```
+
+We will use this later when working with real data transformations.
+
+---
+
+# CHAPTER 10 — SELECT & READING DATA
+
+The most important SQL command is:
+
+```sql
+SELECT
+```
+
+---
+
+# 10.1 Select Everything
+
+```sql
+SELECT * FROM products;
+```
+
+Useful during exploration.
+
+But don't blindly use `SELECT *` in production APIs.
+
+Prefer explicit columns:
+
+```sql
+SELECT id, name, price
+FROM products;
+```
+
+---
+
+# 10.2 Column Aliases
+
+```sql
+SELECT
+    name AS product_name,
+    price AS product_price
+FROM products;
+```
+
+---
+
+# 10.3 Expressions
+
+```sql
+SELECT
+    name,
+    price,
+    price * 1.18 AS price_with_tax
+FROM products;
+```
+
+---
+
+# 10.4 DISTINCT
+
+```sql
+SELECT DISTINCT category
+FROM products;
+```
+
+Returns unique values.
+
+---
+
+# 10.5 Query Mental Model
+
+Think:
+
+```text
+SELECT
+ ↓
+FROM
+ ↓
+WHERE
+ ↓
+GROUP BY
+ ↓
+HAVING
+ ↓
+ORDER BY
+ ↓
+LIMIT
+```
+
+The exact logical processing order is more nuanced, but this mental model is useful initially.
+
+We will revisit query execution in V03/V04.
+
+---
+
+# CHAPTER 11 — FILTERING, SORTING & LIMITING
+
+## 11.1 WHERE
+
+```sql
+SELECT *
+FROM products
+WHERE price > 1000;
+```
+
+---
+
+# 11.2 Multiple Conditions
+
+```sql
+SELECT *
+FROM products
+WHERE price > 1000
+AND stock > 0;
+```
+
+---
+
+# 11.3 OR
+
+```sql
+SELECT *
+FROM products
+WHERE price < 1000
+OR stock = 0;
+```
+
+---
+
+# 11.4 IN
+
+```sql
+SELECT *
+FROM products
+WHERE category_id IN (1, 2, 3);
+```
+
+---
+
+# 11.5 BETWEEN
+
+```sql
+SELECT *
+FROM products
+WHERE price BETWEEN 1000 AND 5000;
+```
+
+---
+
+# 11.6 LIKE
+
+```sql
+SELECT *
+FROM products
+WHERE name LIKE 'Key%';
+```
+
+For PostgreSQL-specific case-insensitive matching:
+
+```sql
+SELECT *
+FROM products
+WHERE name ILIKE '%keyboard%';
+```
+
+---
+
+# 11.7 ORDER BY
+
+```sql
+SELECT *
+FROM products
+ORDER BY price DESC;
+```
+
+---
+
+# 11.8 LIMIT
+
+```sql
+SELECT *
+FROM products
+ORDER BY price DESC
+LIMIT 10;
+```
+
+---
+
+# 11.9 OFFSET
+
+```sql
+SELECT *
+FROM products
+ORDER BY id
+LIMIT 10 OFFSET 20;
+```
+
+This is simple pagination.
+
+Later we will learn why OFFSET pagination can become problematic for large datasets.
+
+---
+
+# CHAPTER 12 — NULL & THREE-VALUED LOGIC
+
+NULL requires special care.
+
+---
+
+# 12.1 Incorrect
+
+Don't write:
+
+```sql
+WHERE phone = NULL
+```
+
+Use:
+
+```sql
+WHERE phone IS NULL
+```
+
+---
+
+# 12.2 NOT NULL
+
+```sql
+WHERE phone IS NOT NULL
+```
+
+---
+
+# 12.3 Why?
+
+SQL logic isn't simply:
+
+```text
+TRUE
+FALSE
+```
+
+With NULL, we can get:
+
+```text
+TRUE
+FALSE
+UNKNOWN
+```
+
+This is called three-valued logic.
+
+---
+
+# 12.4 Example
+
+Suppose:
+
+```text
+price = NULL
+```
+
+Then:
+
+```sql
+price > 1000
+```
+
+doesn't become TRUE or FALSE in the ordinary sense.
+
+It evaluates to UNKNOWN.
+
+This affects filtering and conditions.
+
+---
+
+# CHAPTER 13 — UPDATE & DELETE
+
+## 13.1 UPDATE
+
+```sql
+UPDATE products
+SET price = 1600
+WHERE id = 1;
+```
+
+---
+
+# 13.2 Multiple Columns
+
+```sql
+UPDATE products
+SET
+    price = 1600,
+    stock = 25
+WHERE id = 1;
+```
+
+---
+
+# 13.3 Critical Safety Rule
+
+Never casually run:
+
+```sql
+UPDATE products
+SET price = 1600;
+```
+
+unless you intentionally want to update every row.
+
+Always understand the `WHERE` condition.
+
+---
+
+# 13.4 DELETE
+
+```sql
+DELETE FROM products
+WHERE id = 1;
+```
+
+Again:
+
+```sql
+DELETE FROM products;
+```
+
+deletes every row.
+
+---
+
+# 13.5 Soft Delete
+
+Many production systems avoid immediately deleting important records.
+
+Instead:
+
+```text
+deleted_at
+```
+
+or:
+
+```text
+is_deleted
+```
+
+can be used.
+
+But soft deletion has tradeoffs and should not be added blindly.
+
+We will discuss this through application design later.
+
+---
+
+# CHAPTER 14 — AGGREGATE FUNCTIONS
+
+Aggregates calculate information from multiple rows.
+
+---
+
+# 14.1 COUNT
+
+```sql
+SELECT COUNT(*)
+FROM products;
+```
+
+---
+
+# 14.2 SUM
+
+```sql
+SELECT SUM(price)
+FROM products;
+```
+
+---
+
+# 14.3 AVG
+
+```sql
+SELECT AVG(price)
+FROM products;
+```
+
+---
+
+# 14.4 MIN / MAX
+
+```sql
+SELECT
+    MIN(price),
+    MAX(price)
+FROM products;
+```
+
+---
+
+# 14.5 Why Aggregates Matter
+
+Applications constantly need questions like:
+
+```text
+How many users?
+
+How much revenue?
+
+What is the average order value?
+
+How many products are out of stock?
+```
+
+These are database problems.
+
+---
+
+# CHAPTER 15 — GROUP BY & HAVING
+
+Suppose:
+
+```text
+orders
+```
+
+contains:
+
+```text
+customer_id
+amount
+```
+
+We can calculate total spending per customer.
+
+```sql
+SELECT
+    customer_id,
+    SUM(amount) AS total_spent
+FROM orders
+GROUP BY customer_id;
+```
+
+---
+
+# 15.1 HAVING
+
+`WHERE` filters rows.
+
+`HAVING` filters groups.
+
+Example:
+
+```sql
+SELECT
+    customer_id,
+    SUM(amount) AS total_spent
+FROM orders
+GROUP BY customer_id
+HAVING SUM(amount) > 10000;
+```
+
+Meaning:
+
+> Return customers whose total spending exceeds 10,000.
+
+---
+
+# 15.2 Important Difference
+
+```text
+WHERE
+→ before grouping
+
+HAVING
+→ after grouping
+```
+
+This distinction becomes important in V03.
+
+---
+
+# CHAPTER 16 — JOINS
+
+Joins are fundamental to relational databases.
+
+Suppose:
+
+```text
+customers
+```
+
+and:
+
+```text
+orders
+```
+
+---
+
+# 16.1 INNER JOIN
+
+```sql
+SELECT
+    customers.name,
+    orders.id,
+    orders.amount
+FROM customers
+INNER JOIN orders
+    ON orders.customer_id = customers.id;
+```
+
+This returns matching records.
+
+---
+
+# 16.2 LEFT JOIN
+
+```sql
+SELECT
+    customers.name,
+    orders.id
+FROM customers
+LEFT JOIN orders
+    ON orders.customer_id = customers.id;
+```
+
+This keeps every customer, even if they have no order.
+
+---
+
+# 16.3 Why LEFT JOIN Matters
+
+Suppose we want:
+
+> Find all customers, including customers who never ordered anything.
+
+`INNER JOIN` would remove customers without orders.
+
+`LEFT JOIN` preserves them.
+
+---
+
+# 16.4 RIGHT JOIN
+
+Exists, but generally less common in everyday application SQL because many queries can be expressed more clearly using `LEFT JOIN`.
+
+We need to understand it, not prioritize it.
+
+---
+
+# 16.5 FULL OUTER JOIN
+
+Returns unmatched rows from both sides.
+
+Useful in certain analytical/data reconciliation situations.
+
+Not something you need to force into every project.
+
+---
+
+# 16.6 CROSS JOIN
+
+Produces combinations between rows.
+
+Potentially enormous.
+
+Use deliberately.
+
+---
+
+# 16.7 Join Mental Model
+
+Always ask:
+
+> What relationship am I trying to combine?
+
+Then:
+
+```text
+Which table?
+Which key?
+Which rows should survive?
+```
+
+Don't memorize join diagrams without understanding the business question.
+
+---
+
+# CHAPTER 17 — SUBQUERIES & QUERY COMPOSITION
+
+V03 will go much deeper here.
+
+For now, understand the fundamentals.
+
+---
+
+# 17.1 Scalar Subquery
+
+Example:
+
+```sql
+SELECT name
+FROM products
+WHERE price > (
+    SELECT AVG(price)
+    FROM products
+);
+```
+
+Meaning:
+
+> Find products more expensive than the average product.
+
+---
+
+# 17.2 IN Subquery
+
+```sql
+SELECT *
+FROM customers
+WHERE id IN (
+    SELECT customer_id
+    FROM orders
+);
+```
+
+---
+
+# 17.3 EXISTS
+
+```sql
+SELECT *
+FROM customers c
+WHERE EXISTS (
+    SELECT 1
+    FROM orders o
+    WHERE o.customer_id = c.id
+);
+```
+
+This asks:
+
+> Does at least one matching order exist?
+
+---
+
+# 17.4 Why We Stop Here
+
+Complex:
+
+* CTEs
+* recursive CTEs
+* window functions
+* advanced subquery patterns
+* query optimization
+
+belong primarily in:
+
+## DB V03 — SQL & Query Engineering
+
+We introduce the concepts now without turning V02 into an advanced SQL volume.
+
+---
+
+# CHAPTER 18 — DATES, TIMES & STRINGS
+
+Real applications constantly manipulate dates and strings.
+
+---
+
+# 18.1 Current Time
+
+```sql
+SELECT CURRENT_TIMESTAMP;
+```
+
+---
+
+# 18.2 Current Date
+
+```sql
+SELECT CURRENT_DATE;
+```
+
+---
+
+# 18.3 Date Filtering
+
+```sql
+SELECT *
+FROM orders
+WHERE created_at >= '2026-01-01';
+```
+
+---
+
+# 18.4 String Functions
+
+Examples:
+
+```sql
+SELECT LOWER(name)
+FROM users;
+```
+
+```sql
+SELECT UPPER(name)
+FROM users;
+```
+
+---
+
+# 18.5 Concatenation
+
+```sql
+SELECT first_name || ' ' || last_name AS full_name
+FROM users;
+```
+
+---
+
+# 18.6 Why Date/Time Requires Care
+
+Time zones matter.
+
+For example:
+
+```text
+India
+UTC
+US
+Europe
+```
+
+A production application should have a deliberate timezone strategy.
+
+Don't simply treat every timestamp as a random string.
+
+---
+
+# CHAPTER 19 — POSTGRESQL TRANSACTIONS
+
+Now connect V01's ACID theory to actual PostgreSQL.
+
+---
+
+# 19.1 BEGIN
+
+```sql
+BEGIN;
+```
+
+---
+
+# 19.2 Operations
+
+```sql
+UPDATE accounts
+SET balance = balance - 1000
+WHERE id = 1;
+
+UPDATE accounts
+SET balance = balance + 1000
+WHERE id = 2;
+```
+
+---
+
+# 19.3 COMMIT
+
+```sql
+COMMIT;
+```
+
+Changes become part of the committed transaction.
+
+---
+
+# 19.4 ROLLBACK
+
+```sql
+ROLLBACK;
+```
+
+Undo the transaction's changes.
+
+---
+
+# 19.5 Example
+
+```sql
+BEGIN;
+
+UPDATE accounts
+SET balance = balance - 1000
+WHERE id = 1;
+
+UPDATE accounts
+SET balance = balance + 1000
+WHERE id = 2;
+
+COMMIT;
+```
+
+The two operations belong to one logical unit.
+
+---
+
+# 19.6 Why Transactions Matter in Backend APIs
+
+Imagine:
+
+```text
+POST /transfer
+```
+
+A backend endpoint may need multiple database operations.
+
+You don't want:
+
+```text
+Operation 1 succeeds
+Operation 2 fails
+```
+
+and leave the system in an invalid state.
+
+The transaction boundary protects the operation.
+
+---
+
+# CHAPTER 20 — POSTGRESQL FUNCTIONS & USEFUL FEATURES
+
+We will introduce useful PostgreSQL capabilities without diving into advanced database programming.
+
+---
+
+# 20.1 Built-In Functions
+
+Examples:
+
+```sql
+SELECT NOW();
+```
+
+```sql
+SELECT LENGTH('PostgreSQL');
+```
+
+```sql
+SELECT ROUND(123.456, 2);
+```
+
+---
+
+# 20.2 COALESCE
+
+Very useful.
+
+```sql
+SELECT COALESCE(phone, 'Not provided')
+FROM users;
+```
+
+Meaning:
+
+> Use the phone value if available; otherwise use the fallback.
+
+---
+
+# 20.3 CASE
+
+Conditional logic:
+
+```sql
+SELECT
+    name,
+    CASE
+        WHEN stock = 0 THEN 'Out of stock'
+        WHEN stock < 10 THEN 'Low stock'
+        ELSE 'Available'
+    END AS stock_status
+FROM products;
+```
+
+---
+
+# 20.4 RETURNING
+
+PostgreSQL supports:
+
+```sql
+UPDATE products
+SET price = 1600
+WHERE id = 1
+RETURNING *;
+```
+
+This is extremely useful for APIs.
+
+---
+
+# 20.5 JSONB Introduction
+
+PostgreSQL can store JSON:
+
+```sql
+CREATE TABLE users (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name TEXT NOT NULL,
+    metadata JSONB
+);
+```
+
+Example:
+
+```json
+{
+  "theme": "dark",
+  "language": "en"
+}
+```
+
+We will not replace relational modeling with JSONB.
+
+The rule remains:
+
+> Use structured relational columns for structured relational data.
+
+---
+
+# CHAPTER 21 — DATABASE USERS, ROLES & PERMISSIONS
+
+PostgreSQL has a role system.
+
+---
+
+# 21.1 Create a Role
+
+Conceptually:
+
+```sql
+CREATE ROLE app_user LOGIN PASSWORD '...';
+```
+
+Never use real passwords in source code or documentation.
+
+---
+
+# 21.2 Permissions
+
+Example:
+
+```sql
+GRANT SELECT ON products TO app_user;
+```
+
+The principle:
+
+> Give only the permissions required.
+
+---
+
+# 21.3 Read-Only Role
+
+A reporting application might need:
+
+```text
+SELECT
+```
+
+but not:
+
+```text
+INSERT
+UPDATE
+DELETE
+```
+
+This is least privilege.
+
+---
+
+# 21.4 Application Database User
+
+Your backend should ideally use a dedicated database role rather than a superuser.
+
+Bad:
+
+```text
+Application
+   ↓
+postgres superuser
+```
+
+Better:
+
+```text
+Application
+   ↓
+app_user
+   ↓
+only required permissions
+```
+
+This becomes much more important in DB V04 and DevOps V17.
+
+---
+
+# CHAPTER 22 — POSTGRESQL BACKUP & RESTORE BASICS
+
+We learned the concepts in V01.
+
+Now we get basic hands-on experience.
+
+---
+
+# 22.1 pg_dump
+
+A logical backup can be created using PostgreSQL tools.
+
+Conceptually:
+
+```bash
+pg_dump database_name > backup.sql
+```
+
+---
+
+# 22.2 Restore
+
+A SQL-format dump can be restored using:
+
+```bash
+psql database_name < backup.sql
+```
+
+Exact commands depend on authentication, format, and environment.
+
+---
+
+# 22.3 Why Practice This Now?
+
+Because:
+
+> Database engineering isn't only about writing queries.
+
+You must eventually be able to answer:
+
+> "What happens if the database disappears?"
+
+---
+
+# 22.4 Important Rule
+
+Never consider:
+
+```text
+backup.sql exists
+```
+
+to mean:
+
+```text
+recovery works
+```
+
+Actually test the restore.
+
+---
+
+# CHAPTER 23 — APPLICATION ↔ POSTGRESQL INTEGRATION
+
+Now connect PostgreSQL to your backend knowledge.
+
+---
+
+# 23.1 Python
+
+Typical architecture:
+
+```text
+FastAPI
+   ↓
+Python PostgreSQL Driver
+   ↓
+PostgreSQL
+```
+
+Common technologies include:
+
+* psycopg
+* SQLAlchemy
+
+We will understand both conceptually and use them practically where appropriate.
+
+---
+
+# 23.2 Node.js
+
+Architecture:
+
+```text
+Express
+   ↓
+Node PostgreSQL Driver / ORM
+   ↓
+PostgreSQL
+```
+
+Examples include:
+
+* `pg`
+* Prisma
+* Drizzle
+* other PostgreSQL libraries
+
+We don't need to learn every ORM.
+
+The priority is understanding the database itself.
+
+---
+
+# 23.3 ORM vs SQL
+
+An ORM can allow:
+
+```text
+User.find(...)
+```
+
+instead of manually writing SQL.
+
+But:
+
+> ORM knowledge does not replace SQL knowledge.
+
+You should understand what query the ORM is ultimately causing the database to execute.
+
+This becomes extremely important in DB V03.
+
+---
+
+# 23.4 Parameterized Queries
+
+Never build SQL by concatenating untrusted user input.
+
+Bad:
+
+```text
+"SELECT * FROM users WHERE email = '" + email + "'"
+```
+
+Use parameterized queries.
+
+Conceptually:
+
+```text
+SQL template
+     +
+parameters
+     ↓
+database
+```
+
+This protects against SQL injection.
+
+---
+
+# CHAPTER 24 — DATABASE DEVELOPMENT WORKFLOW
+
+Now we turn PostgreSQL knowledge into professional practice.
+
+---
+
+# 24.1 Don't Manually Change Production Databases Randomly
+
+Instead of:
+
+```text
+Production DB
+    ↓
+Developer manually edits table
+```
+
+use controlled schema changes.
+
+Eventually:
+
+```text
+Migration
+   ↓
+Review
+   ↓
+Test
+   ↓
+Apply
+```
+
+We will learn migration tooling deeply in DB V06.
+
+---
+
+# 24.2 Version Control
+
+Store:
+
+* schema definitions
+* migrations
+* seed data
+* useful queries
+* documentation
+
+in Git.
+
+---
+
+# 24.3 Development Database
+
+Your development environment should be isolated from production.
+
+Conceptually:
+
+```text
+Developer
+   ↓
+Development DB
+
+Testing
+   ↓
+Test DB
+
+Production
+   ↓
+Production DB
+```
+
+Never casually experiment against production.
+
+---
+
+# 24.4 Seed Data
+
+Seed data provides predictable initial records.
+
+Example:
+
+```text
+Admin
+Customer
+Products
+Categories
+```
+
+Useful for:
+
+* development
+* testing
+* demos
+
+---
+
+# 24.5 Database Testing
+
+Test:
+
+* constraints
+* relationships
+* transactions
+* important queries
+* migrations
+* seed data
+
+This will become part of database DevOps later.
+
+---
+
+# CHAPTER 25 — MINI-PROJECT
+
+# Project: E-Commerce PostgreSQL Database
+
+This is our main V02 practical project.
+
+It is deliberately **database-focused**.
+
+We are not building the entire frontend.
+
+We are building a real PostgreSQL data layer.
+
+---
+
+# Project Goal
+
+Build a PostgreSQL database for a small e-commerce system.
+
+---
+
+# Phase 1 — Requirements
+
+The system needs:
+
+### Customers
+
+```text
+id
+name
+email
+phone
+created_at
+```
+
+### Categories
+
+```text
+id
+name
+```
+
+### Products
+
+```text
+id
+category_id
+name
+description
+price
+stock
+created_at
+```
+
+### Orders
+
+```text
+id
+customer_id
+status
+created_at
+```
+
+### Order Items
+
+```text
+id
+order_id
+product_id
+quantity
+unit_price
+```
+
+### Payments
+
+```text
+id
+order_id
+amount
+status
+paid_at
+```
+
+---
+
+# Phase 2 — Design
+
+Before writing SQL:
+
+Create:
+
+```text
+ER diagram
+```
+
+Determine:
+
+```text
+Customer → Orders
+Category → Products
+Order → Order Items
+Product → Order Items
+Order → Payment
+```
+
+---
+
+# Phase 3 — Schema
+
+Implement the tables with:
+
+* primary keys
+* foreign keys
+* unique constraints
+* NOT NULL
+* CHECK
+* defaults
+
+---
+
+# Phase 4 — Insert Data
+
+Create realistic seed data.
+
+At least:
+
+```text
+10 customers
+5 categories
+30 products
+20 orders
+40+ order items
+20 payments
+```
+
+Don't create meaningless random data.
+
+Make the data useful for querying.
+
+---
+
+# Phase 5 — Basic Queries
+
+Write queries to:
+
+1. List all products.
+2. Find products by category.
+3. Find products below a price.
+4. Find customers by email.
+5. Find all orders for a customer.
+6. Find order items for an order.
+7. Find unpaid orders.
+8. Find out-of-stock products.
+9. Find the most expensive products.
+10. Find recently created orders.
+
+---
+
+# Phase 6 — Joins
+
+Write queries for:
+
+1. Customer + orders
+2. Orders + customers
+3. Orders + order items
+4. Order items + products
+5. Products + categories
+6. Orders + payments
+
+---
+
+# Phase 7 — Aggregations
+
+Answer:
+
+```text
+Total number of customers?
+
+Total number of products?
+
+Total order value?
+
+Total revenue?
+
+Revenue per customer?
+
+Revenue per category?
+
+Average order value?
+
+Number of orders per customer?
+```
+
+---
+
+# Phase 8 — Transactions
+
+Implement a simulated order creation process:
+
+```text
+BEGIN
+
+Create order
+Create order items
+Reduce product stock
+Create payment record
+
+COMMIT
+```
+
+Then deliberately cause an error halfway through and use:
+
+```text
+ROLLBACK
+```
+
+Verify that the database did not end up partially updated.
+
+---
+
+# Phase 9 — Constraints
+
+Try deliberately inserting:
+
+```text
+duplicate email
+negative price
+negative stock
+invalid customer_id
+invalid product_id
+invalid order_id
+```
+
+Record which database rule rejects each operation.
+
+---
+
+# Phase 10 — Backup & Restore
+
+Create a backup.
+
+Then:
+
+1. Create a fresh database.
+2. Restore the backup.
+3. Verify tables.
+4. Verify row counts.
+5. Verify important relationships.
+6. Run several queries against the restored database.
+
+Document the process.
+
+---
+
+# Phase 11 — Application Integration
+
+Build a **small backend API**.
+
+Use either:
+
+### Option A
+
+FastAPI + PostgreSQL
+
+or:
+
+### Option B
+
+Node.js/Express + PostgreSQL
+
+Since your existing software background is MERN, Node.js is completely acceptable.
+
+But because our DevOps + AI roadmap uses Python heavily, FastAPI is also valuable.
+
+The backend should implement a small set of endpoints:
+
+```text
+GET    /products
+GET    /products/:id
+POST   /products
+GET    /customers/:id/orders
+POST   /orders
+GET    /orders/:id
+```
+
+Use parameterized queries or an appropriate database library.
+
+Do not build a complete e-commerce frontend.
+
+The purpose is:
+
+```text
+API
+ ↓
+PostgreSQL
+```
+
+---
+
+# Phase 12 — Documentation
+
+Create:
+
+```text
+README.md
+```
+
+Document:
+
+* architecture
+* schema
+* ER diagram
+* setup instructions
+* database creation
+* seed instructions
+* important queries
+* backup/restore
+* API integration
+* lessons learned
+
+---
+
+# PROJECT DIRECTORY
+
+Suggested structure:
+
+```text
+postgres-ecommerce-lab/
+│
+├── README.md
+│
+├── docs/
+│   ├── architecture.md
+│   ├── schema.md
+│   └── backup-restore.md
+│
+├── schema/
+│   └── schema.sql
+│
+├── seed/
+│   └── seed.sql
+│
+├── queries/
+│   ├── basic.sql
+│   ├── joins.sql
+│   └── analytics.sql
+│
+├── migrations/
+│
+└── api/
+    └── ...
+```
+
+This is intentionally structured like a real engineering repository.
+
+---
+
+# CHAPTER 26 — FINAL REVIEW & ENGINEERING ASSESSMENT
+
+At the end of V02, you should be able to:
+
+## PostgreSQL
+
+* Explain PostgreSQL vs SQL.
+* Install PostgreSQL.
+* Manage the PostgreSQL service.
+* Connect using `psql`.
+* Understand databases and schemas.
+* Understand PostgreSQL roles.
+
+## SQL
+
+Write confidently:
+
+```sql
+CREATE
+INSERT
+SELECT
+UPDATE
+DELETE
+```
+
+and use:
+
+```text
+WHERE
+ORDER BY
+LIMIT
+OFFSET
+DISTINCT
+GROUP BY
+HAVING
+JOIN
+```
+
+---
+
+# Data Modeling
+
+You should be able to:
+
+* create tables
+* select appropriate data types
+* create primary keys
+* create foreign keys
+* add constraints
+* model relationships
+
+---
+
+# Transactions
+
+You should be able to explain and use:
+
+```sql
+BEGIN;
+COMMIT;
+ROLLBACK;
+```
+
+and explain why transactions matter to backend APIs.
+
+---
+
+# PostgreSQL Features
+
+You should understand:
+
+* identity columns
+* timestamps
+* JSONB basics
+* `RETURNING`
+* `COALESCE`
+* `CASE`
+
+---
+
+# Security
+
+You should understand:
+
+* PostgreSQL roles
+* permissions
+* least privilege
+* parameterized queries
+* SQL injection
+
+---
+
+# Operations
+
+You should be able to:
+
+* create a backup
+* restore a backup
+* verify a restore
+* understand why backups must be tested
+
+---
+
+# Backend Integration
+
+You should understand:
+
+```text
+Backend
+   ↓
+Driver
+   ↓
+Connection
+   ↓
+PostgreSQL
+```
+
+and:
+
+> ORM abstraction does not remove the need to understand SQL.
+
+---
+
+# Feynman Assessment
+
+Without notes, explain:
+
+### 1.
+
+What happens when you run:
+
+```sql
+SELECT *
+FROM products
+WHERE price > 1000;
+```
+
+at a high level?
+
+### 2.
+
+Why does a foreign key exist?
+
+### 3.
+
+Why would you use `LEFT JOIN` instead of `INNER JOIN`?
+
+### 4.
+
+What is the difference between `WHERE` and `HAVING`?
+
+### 5.
+
+Why is this dangerous?
+
+```sql
+DELETE FROM users;
+```
+
+### 6.
+
+Why should an application not connect as the PostgreSQL superuser?
+
+### 7.
+
+Why are parameterized queries important?
+
+### 8.
+
+Why does a transaction matter when creating an order?
+
+### 9.
+
+What is the difference between:
+
+```text
+Database
+Schema
+Table
+Row
+Column
+```
+
+### 10.
+
+Why is an ORM not a replacement for SQL knowledge?
+
+---
+
+# Deliberate Practice
+
+Complete these without copying solutions.
+
+## Problem 01 — Customer Query
+
+Find customers who:
+
+* have placed at least one order
+* have spent more than ₹10,000
+
+---
+
+## Problem 02 — Inventory
+
+Find products where:
+
+```text
+stock < 10
+```
+
+and:
+
+```text
+price > ₹1,000
+```
+
+---
+
+## Problem 03 — Customers Without Orders
+
+Find all customers who have never placed an order.
+
+This is specifically designed to make you reason about joins.
+
+---
+
+## Problem 04 — Revenue
+
+Calculate total revenue.
+
+Then calculate:
+
+```text
+revenue per customer
+revenue per category
+average order value
+```
+
+---
+
+## Problem 05 — Transaction Failure
+
+Create an order transaction that:
+
+1. Creates an order.
+2. Inserts order items.
+3. Updates stock.
+4. Intentionally causes an error.
+5. Rolls back.
+
+Verify that the database returns to the original state.
+
+---
+
+# Spaced Repetition
+
+After each major SQL section:
+
+### Same day
+
+Write 3–5 queries from memory.
+
+### Next day
+
+Solve one query without notes.
+
+### After 3–4 days
+
+Solve a new problem using the same concept.
+
+### After 1 week
+
+Explain the concept without SQL autocomplete or documentation.
+
+### After V02
+
+Rebuild a small schema from memory.
+
+---
+
+# Important Boundary: What We Are NOT Doing Yet
+
+We deliberately postpone:
+
+### Advanced SQL
+
+* complex CTE patterns
+* recursive CTEs
+* window-function mastery
+* advanced analytical SQL
+* complex query transformations
+
+→ **DB V03**
+
+### Deep PostgreSQL internals
+
+* MVCC internals
+* WAL internals
+* storage pages
+* vacuum internals
+* planner internals
+* locking internals
+* advanced indexing
+* replication internals
+
+→ **DB V04**
+
+### Database DevOps
+
+* migrations in CI/CD
+* automated database deployment
+* production backup automation
+* infrastructure
+* managed cloud databases
+
+→ **DB V06 + DevOps roadmap**
+
+This boundary is intentional.
+
+We want **depth without unnecessary repetition**.
+
+---
+
+# V02 Final Mental Model
+
+By the end of this volume, your mental model should be:
+
+```text
+Application
+      ↓
+Database Driver
+      ↓
+Connection / Pool
+      ↓
+PostgreSQL Server
+      ↓
+Database
+      ↓
+Schema
+      ↓
+Tables
+      ↓
+Rows
+      ↓
+Constraints
+      ↓
+Relationships
+      ↓
+SQL Queries
+      ↓
+Transactions
+      ↓
+Persistent Data
+```
+
+And when you write SQL:
+
+```text
+Business Question
+       ↓
+What data is needed?
+       ↓
+Which tables?
+       ↓
+How are they related?
+       ↓
+Which rows?
+       ↓
+Which columns?
+       ↓
+Which conditions?
+       ↓
+GROUP / JOIN / FILTER
+       ↓
+Result
+```
+
+That is the foundation of **query engineering**.
+
+---
+
+# V02 Completion Criteria
+
+Do not mark V02 complete because you finished reading the chapters.
+
+You should have:
+
+* A working PostgreSQL environment.
+* Created databases and schemas.
+* Created relational tables.
+* Used appropriate data types.
+* Applied constraints.
+* Inserted realistic data.
+* Written SELECT queries.
+* Filtered and sorted data.
+* Used aggregates.
+* Used GROUP BY/HAVING.
+* Written joins.
+* Used basic subqueries.
+* Worked with dates and strings.
+* Used transactions.
+* Created PostgreSQL roles.
+* Practiced least privilege.
+* Created and restored a backup.
+* Connected a backend API to PostgreSQL.
+* Completed the e-commerce database project.
+* Documented the project.
+* Passed the Feynman assessment.
+
+Most importantly:
+
+> **You should be able to take a small application requirement, design its PostgreSQL schema, populate it, and retrieve the required data using SQL without blindly relying on an ORM.**
+
+---
+
+# V02 → V03 Transition
+
+V02 teaches:
+
+> **How to use PostgreSQL and write normal application SQL.**
+
+V03 will teach:
+
+> **How to think like a query engineer.**
+
+We will go much deeper into:
+
+```text
+Complex joins
+        ↓
+Subqueries
+        ↓
+CTEs
+        ↓
+Window functions
+        ↓
+Advanced SQL
+        ↓
+Query reasoning
+        ↓
+EXPLAIN
+        ↓
+Query performance
+        ↓
+SQL optimization
+```
+
+Then V04 will explain what PostgreSQL is doing underneath those queries.
+
+**End of DB V02.**

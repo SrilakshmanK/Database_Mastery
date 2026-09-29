@@ -1,0 +1,4495 @@
+# DB V06 — AI-Native Databases & Database DevOps
+
+## Database Engineering Roadmap — Volume 06
+
+---
+
+# 0. Volume Purpose
+
+This is the final volume of the Database Engineering roadmap.
+
+The previous volumes built the foundation:
+
+```text
+DB V01
+Database Fundamentals
+        ↓
+DB V02
+PostgreSQL + SQL
+        ↓
+DB V03
+SQL + Query Engineering
+        ↓
+DB V04
+PostgreSQL Internals + Production
+        ↓
+DB V05
+MongoDB + Redis + Polyglot Persistence
+        ↓
+DB V06
+AI-Native Databases + Database DevOps
+```
+
+Now we connect database engineering with the larger system you are building:
+
+```text
+Database Engineering
+        +
+Backend Engineering
+        +
+DevOps
+        +
+AI Engineering
+```
+
+This volume answers questions such as:
+
+> How should databases support AI applications?
+
+> Where should embeddings live?
+
+> How does PostgreSQL become a vector database?
+
+> How should RAG systems store documents and metadata?
+
+> How do databases fit into Docker and CI/CD?
+
+> How should database migrations work in production?
+
+> How do we deploy and operate databases in cloud environments?
+
+> How do we secure, monitor, back up and recover databases?
+
+> How should a production AI application decide where each type of data belongs?
+
+---
+
+# 1. The Goal of V06
+
+The goal is **not** to turn you into:
+
+* a dedicated DBA
+* a PostgreSQL kernel developer
+* a MongoDB specialist
+* a distributed-systems researcher
+* a vector-database researcher
+
+The goal is to make you capable of designing and operating the database layer of modern backend and AI systems.
+
+By the end, you should be able to look at an architecture like:
+
+```text
+                    AI APPLICATION
+                          │
+                    API / Backend
+                          │
+          ┌───────────────┼────────────────┐
+          ▼               ▼                ▼
+     PostgreSQL        MongoDB           Redis
+          │               │                │
+       Durable         Documents         Cache
+       relational      / flexible       / sessions
+          │
+          ├───────────────┐
+          ▼               ▼
+       pgvector       Structured data
+          │
+          ▼
+     Embeddings
+          │
+          ▼
+      RAG Search
+```
+
+and understand:
+
+* why each database exists
+* what data belongs where
+* what the source of truth is
+* how data flows
+* how it is deployed
+* how it is migrated
+* how it is backed up
+* how it is monitored
+* what happens when something fails
+
+---
+
+# 2. Important Scope Decision
+
+We will focus heavily on:
+
+```text
+PostgreSQL
++
+pgvector
++
+MongoDB
++
+Redis
++
+Docker
++
+CI/CD
++
+Cloud
++
+AI/RAG
+```
+
+We will **not** spend significant time learning every specialized vector database.
+
+You should understand the landscape, but for this roadmap:
+
+> PostgreSQL + pgvector is the primary vector-database learning path.
+
+Why?
+
+Because you already know PostgreSQL deeply, and modern AI applications often benefit from combining:
+
+```text
+relational data
++
+metadata
++
+vector data
++
+transactions
+```
+
+inside one system.
+
+Later, if a real project requires a specialized vector database, you will have enough fundamentals to learn it quickly.
+
+---
+
+# 3. Chapters
+
+## Chapter 01 — Databases in AI Systems
+
+## Chapter 02 — AI Data Architecture
+
+## Chapter 03 — Embeddings as Database Data
+
+## Chapter 04 — PostgreSQL + pgvector
+
+## Chapter 05 — Vector Similarity Search
+
+## Chapter 06 — Vector Indexing & Search Performance
+
+## Chapter 07 — Metadata Filtering & Hybrid Retrieval
+
+## Chapter 08 — RAG Database Architecture
+
+## Chapter 09 — Document & Chunk Data Modeling
+
+## Chapter 10 — Conversation, Memory & AI State
+
+## Chapter 11 — MongoDB in AI Applications
+
+## Chapter 12 — Redis in AI Applications
+
+## Chapter 13 — AI Caching & Semantic Cache Concepts
+
+## Chapter 14 — Database Migrations & Schema Evolution
+
+## Chapter 15 — Migration Safety & Zero-Downtime Changes
+
+## Chapter 16 — Database Testing
+
+## Chapter 17 — Database CI/CD
+
+## Chapter 18 — Dockerized Database Development
+
+## Chapter 19 — Managed Cloud Databases
+
+## Chapter 20 — Database Security & Secrets
+
+## Chapter 21 — Database Observability
+
+## Chapter 22 — Backup, Recovery & Disaster Planning
+
+## Chapter 23 — Database Infrastructure as Code
+
+## Chapter 24 — Database Operations in Kubernetes
+
+## Chapter 25 — Production AI Database Architecture
+
+## Chapter 26 — Database Cost Engineering
+
+## Chapter 27 — Mini-Project: AI Knowledge Database Platform
+
+## Chapter 28 — Database DevOps Failure Drills
+
+## Chapter 29 — Final Database Engineering Assessment
+
+---
+
+# CHAPTER 01 — DATABASES IN AI SYSTEMS
+
+Traditional applications often look like:
+
+```text
+Frontend
+   ↓
+Backend
+   ↓
+Database
+```
+
+AI applications add more data types.
+
+For example:
+
+```text
+User
+Conversation
+Document
+Chunk
+Embedding
+Tool execution
+Model response
+Evaluation result
+Metadata
+```
+
+Now the database architecture becomes more complicated.
+
+---
+
+# 1.1 AI Application Data
+
+A production AI system might need to store:
+
+```text
+Users
+Projects
+Documents
+Chunks
+Embeddings
+Conversations
+Messages
+Tool calls
+Model metadata
+Evaluation results
+Usage records
+Permissions
+```
+
+These data types don't necessarily have the same storage requirements.
+
+---
+
+# 1.2 Example Architecture
+
+```text
+                    AI BACKEND
+                        │
+        ┌───────────────┼────────────────┐
+        ▼               ▼                ▼
+   PostgreSQL        Redis            Object Storage
+        │               │                │
+ Users/ACLs         Cache             Documents
+ Projects           Sessions          Files
+ Metadata           Rate limits
+        │
+        ▼
+     pgvector
+        │
+        ▼
+    Embeddings
+```
+
+The important architectural idea:
+
+> **Not every piece of data belongs in the same storage system.**
+
+---
+
+# 1.3 Source of Truth
+
+For every important piece of data, define:
+
+```text
+Where is the authoritative copy?
+```
+
+Example:
+
+```text
+User account
+→ PostgreSQL
+
+Original PDF
+→ Object storage
+
+Document metadata
+→ PostgreSQL
+
+Embedding
+→ PostgreSQL + pgvector
+
+Cached response
+→ Redis
+```
+
+This prevents architecture confusion.
+
+---
+
+# CHAPTER 02 — AI DATA ARCHITECTURE
+
+AI applications introduce several data flows.
+
+---
+
+# 2.1 Ingestion Flow
+
+```text
+File
+ ↓
+Object Storage
+ ↓
+Parser
+ ↓
+Normalized Document
+ ↓
+Chunks
+ ↓
+Embeddings
+ ↓
+Vector Store
+```
+
+---
+
+# 2.2 Query Flow
+
+```text
+User Question
+      ↓
+Embedding
+      ↓
+Vector Search
+      ↓
+Metadata Filtering
+      ↓
+Retrieved Chunks
+      ↓
+Context
+      ↓
+LLM
+      ↓
+Response
+```
+
+---
+
+# 2.3 Database Responsibilities
+
+A clean architecture could be:
+
+```text
+PostgreSQL
+→ users
+→ permissions
+→ document metadata
+→ chunks
+→ embeddings
+→ conversations
+
+Object Storage
+→ original files
+
+Redis
+→ cache
+→ sessions
+→ rate limits
+```
+
+This is only one valid architecture.
+
+The correct design depends on requirements.
+
+---
+
+# 2.4 Data Lifecycle
+
+Every AI data object has a lifecycle.
+
+For example:
+
+```text
+Document
+ ↓
+Uploaded
+ ↓
+Parsed
+ ↓
+Chunked
+ ↓
+Embedded
+ ↓
+Indexed
+ ↓
+Retrieved
+ ↓
+Updated
+ ↓
+Deleted
+```
+
+A database design must account for the entire lifecycle.
+
+---
+
+# CHAPTER 03 — EMBEDDINGS AS DATABASE DATA
+
+An embedding is a numerical representation of information.
+
+For example:
+
+```text
+Text
+ ↓
+Embedding Model
+ ↓
+[0.13, -0.42, 0.81, ...]
+```
+
+The result is a vector.
+
+---
+
+# 3.1 Why Store Embeddings?
+
+Suppose we have:
+
+```text
+Document A
+Document B
+Document C
+```
+
+Each gets an embedding:
+
+```text
+A → vector A
+B → vector B
+C → vector C
+```
+
+When the user asks a question:
+
+```text
+Question
+ ↓
+Vector Q
+```
+
+We compare:
+
+```text
+Q ↔ A
+Q ↔ B
+Q ↔ C
+```
+
+and retrieve the most similar content.
+
+---
+
+# 3.2 Database Record
+
+A useful conceptual model:
+
+```text
+document_chunks
+-------------------------
+id
+document_id
+chunk_text
+embedding
+metadata
+created_at
+```
+
+Now the database stores both:
+
+```text
+semantic representation
++
+retrievable content
+```
+
+---
+
+# 3.3 Important Principle
+
+An embedding is **derived data**.
+
+The original document/chunk is the source of truth for the text.
+
+If the embedding disappears:
+
+```text
+chunk
+ ↓
+re-embed
+ ↓
+new vector
+```
+
+Therefore:
+
+> Don't treat embeddings as irreplaceable source data.
+
+---
+
+# 3.4 Embedding Model Version
+
+Store the embedding model/version used.
+
+For example:
+
+```text
+embedding_model
+embedding_dimensions
+embedding_version
+```
+
+Why?
+
+Because changing embedding models can change vector dimensions and similarity behavior.
+
+---
+
+# CHAPTER 04 — POSTGRESQL + PGVECTOR
+
+PostgreSQL can store vector data using:
+
+> pgvector
+
+Conceptually:
+
+```text
+PostgreSQL
+    +
+pgvector
+    ↓
+Relational + Vector Database
+```
+
+---
+
+# 4.1 Why This Is Powerful
+
+You can store:
+
+```text
+User
+Document
+Permissions
+Metadata
+Chunk
+Embedding
+```
+
+in one PostgreSQL environment.
+
+This can simplify systems significantly.
+
+---
+
+# 4.2 Vector Column
+
+Conceptually:
+
+```sql
+CREATE TABLE document_chunks (
+    id BIGSERIAL PRIMARY KEY,
+    document_id BIGINT NOT NULL,
+    content TEXT NOT NULL,
+    embedding VECTOR(1536)
+);
+```
+
+The exact dimension depends on the embedding model.
+
+Do not blindly use `1536`.
+
+The vector dimension must match the embedding model.
+
+---
+
+# 4.3 Extension
+
+pgvector is installed/enabled as a PostgreSQL extension.
+
+Conceptually:
+
+```sql
+CREATE EXTENSION vector;
+```
+
+The exact installation procedure depends on your PostgreSQL environment.
+
+---
+
+# 4.4 Relational + Vector Data
+
+This is where pgvector becomes especially useful.
+
+Example:
+
+```text
+document_chunks
+│
+├── document_id
+├── tenant_id
+├── content
+├── category
+├── created_at
+└── embedding
+```
+
+Now vector search can be combined with ordinary SQL filtering.
+
+---
+
+# CHAPTER 05 — VECTOR SIMILARITY SEARCH
+
+The database must compare vectors.
+
+Common similarity/distance concepts include:
+
+```text
+Cosine distance
+Euclidean distance
+Inner product
+```
+
+---
+
+# 5.1 Cosine Similarity
+
+Conceptually:
+
+```text
+A · B
+────────────
+|A| × |B|
+```
+
+It measures directional similarity.
+
+---
+
+# 5.2 Euclidean Distance
+
+Conceptually:
+
+```text
+distance(A,B)
+=
+sqrt(
+ (a1-b1)^2 +
+ (a2-b2)^2 +
+ ...
+)
+```
+
+Smaller distance means closer vectors.
+
+---
+
+# 5.3 Inner Product
+
+Another measure of vector relationship.
+
+The correct metric depends on:
+
+* embedding model
+* normalization
+* application requirements
+
+---
+
+# 5.4 Nearest Neighbor Search
+
+Suppose:
+
+```text
+Query vector
+      ↓
+Compare against vectors
+      ↓
+Rank by distance
+      ↓
+Return top K
+```
+
+This is:
+
+> Nearest-neighbor search.
+
+---
+
+# 5.5 Example Mental Model
+
+```text
+Query
+ ↓
+Vector
+ ↓
+Vector database
+ ↓
+Distance calculation
+ ↓
+Top K
+```
+
+---
+
+# CHAPTER 06 — VECTOR INDEXING & SEARCH PERFORMANCE
+
+Searching every vector becomes expensive at scale.
+
+Suppose:
+
+```text
+10 million vectors
+```
+
+A naive approach might compare against every vector.
+
+That's expensive.
+
+Vector indexes help reduce search work.
+
+---
+
+# 6.1 Approximate Nearest Neighbor
+
+Many vector indexes trade:
+
+```text
+exactness
+```
+
+for:
+
+```text
+speed
+```
+
+This is called:
+
+> Approximate Nearest Neighbor (ANN).
+
+---
+
+# 6.2 HNSW
+
+One important vector indexing approach is:
+
+> HNSW — Hierarchical Navigable Small World.
+
+You do not need to become an algorithm specialist.
+
+Understand:
+
+```text
+Vector dataset
+      ↓
+HNSW index
+      ↓
+Approximate nearest neighbors
+      ↓
+Fast retrieval
+```
+
+---
+
+# 6.3 IVFFlat
+
+Another approach is:
+
+> IVFFlat.
+
+Conceptually:
+
+```text
+Vectors
+ ↓
+Clusters / lists
+ ↓
+Search selected areas
+```
+
+---
+
+# 6.4 Trade-Off
+
+Vector indexing involves:
+
+```text
+Recall
++
+Latency
++
+Memory
++
+Index build cost
++
+Storage
+```
+
+More aggressive approximate search may improve speed while potentially reducing recall.
+
+---
+
+# 6.5 Measure Retrieval Quality
+
+Do not optimize only for:
+
+```text
+milliseconds
+```
+
+Also measure:
+
+```text
+retrieval quality
+recall
+precision
+relevance
+```
+
+AI database performance has both:
+
+```text
+system performance
++
+retrieval quality
+```
+
+---
+
+# CHAPTER 07 — METADATA FILTERING & HYBRID RETRIEVAL
+
+Pure vector similarity is often insufficient.
+
+Suppose the user asks:
+
+> Find documents about Kubernetes from the Engineering department.
+
+Vector similarity alone may retrieve irrelevant documents.
+
+We need metadata filtering.
+
+---
+
+# 7.1 Metadata
+
+Store:
+
+```text
+tenant_id
+user_id
+department
+document_type
+created_at
+permissions
+tags
+```
+
+---
+
+# 7.2 Filter + Vector Search
+
+Conceptually:
+
+```text
+Query
+ ↓
+Metadata filter
+ ↓
+Vector similarity
+ ↓
+Top K
+```
+
+For example:
+
+```sql
+WHERE tenant_id = 42
+  AND document_type = 'engineering'
+```
+
+plus vector similarity ranking.
+
+---
+
+# 7.3 Why Filtering Matters
+
+Without filtering:
+
+```text
+Tenant A
+Tenant B
+Tenant C
+```
+
+could all be searched together.
+
+That can create a serious security problem.
+
+Therefore:
+
+> **Authorization filtering is part of retrieval architecture.**
+
+---
+
+# 7.4 Hybrid Search
+
+Vector search captures semantic similarity.
+
+Keyword/full-text search captures exact terms.
+
+Hybrid retrieval combines them:
+
+```text
+Keyword Search
+       +
+Vector Search
+       ↓
+Fusion
+       ↓
+Final Ranking
+```
+
+This is particularly useful for:
+
+* product names
+* IDs
+* technical terms
+* exact error messages
+* semantic concepts
+
+---
+
+# CHAPTER 08 — RAG DATABASE ARCHITECTURE
+
+RAG systems require more than a vector column.
+
+---
+
+# 8.1 Typical Schema
+
+A simplified design:
+
+```text
+documents
+----------------
+id
+tenant_id
+title
+source
+file_url
+created_at
+
+document_chunks
+----------------
+id
+document_id
+chunk_index
+content
+embedding
+metadata
+created_at
+```
+
+Relationship:
+
+```text
+documents
+    │
+    └── document_chunks
+```
+
+---
+
+# 8.2 Why Separate Documents and Chunks?
+
+One document may produce:
+
+```text
+Document
+ ↓
+100 chunks
+```
+
+Therefore:
+
+```text
+documents
+1 row
+
+document_chunks
+100 rows
+```
+
+This makes lifecycle management easier.
+
+---
+
+# 8.3 Chunk Identity
+
+Each chunk should have a stable identity.
+
+Useful fields:
+
+```text
+document_id
+chunk_index
+chunk_id
+```
+
+---
+
+# 8.4 Metadata
+
+Metadata can include:
+
+```text
+page_number
+section
+source
+author
+created_at
+tenant_id
+permissions
+document_type
+```
+
+This improves:
+
+* filtering
+* citations
+* debugging
+* access control
+* retrieval analysis
+
+---
+
+# 8.5 Document Updates
+
+Suppose a document changes.
+
+Old embeddings may become invalid.
+
+A safe lifecycle:
+
+```text
+Document updated
+      ↓
+Mark old chunks stale
+      ↓
+Parse new document
+      ↓
+Create new chunks
+      ↓
+Generate embeddings
+      ↓
+Index new chunks
+      ↓
+Activate new version
+```
+
+This avoids partially updated retrieval data.
+
+---
+
+# CHAPTER 09 — DOCUMENT & CHUNK DATA MODELING
+
+Chunking creates a database design problem.
+
+---
+
+# 9.1 Don't Store Only the Vector
+
+Bad:
+
+```text
+id
+embedding
+```
+
+You lose important context.
+
+Better:
+
+```text
+id
+document_id
+content
+embedding
+metadata
+```
+
+---
+
+# 9.2 Document Versioning
+
+Useful model:
+
+```text
+documents
+    ↓
+document_versions
+    ↓
+chunks
+```
+
+This supports:
+
+```text
+old version
+new version
+```
+
+and controlled re-indexing.
+
+---
+
+# 9.3 Soft Delete
+
+For AI systems, immediate physical deletion can sometimes make debugging and recovery harder.
+
+A soft-delete field may be useful:
+
+```text
+deleted_at
+```
+
+Then retrieval can filter:
+
+```text
+deleted_at IS NULL
+```
+
+But retention/privacy requirements must determine whether data should actually be permanently deleted.
+
+---
+
+# 9.4 Tenant Isolation
+
+Multi-tenant AI applications should generally include tenant ownership in the data model.
+
+Example:
+
+```text
+tenant_id
+```
+
+Every retrieval query must respect it.
+
+---
+
+# CHAPTER 10 — CONVERSATION, MEMORY & AI STATE
+
+AI applications also need state.
+
+Example:
+
+```text
+Conversation
+    ↓
+Messages
+    ↓
+Tool Calls
+    ↓
+Model Responses
+```
+
+---
+
+# 10.1 Conversation Model
+
+Possible schema:
+
+```text
+conversations
+----------------
+id
+user_id
+title
+created_at
+
+messages
+----------------
+id
+conversation_id
+role
+content
+created_at
+```
+
+---
+
+# 10.2 Why Separate Messages?
+
+One conversation may contain:
+
+```text
+100 messages
+```
+
+Storing them as separate records allows:
+
+* pagination
+* querying
+* deletion
+* analytics
+* retention policies
+
+---
+
+# 10.3 Conversation Memory
+
+Not every message must be placed into the LLM context.
+
+Database storage and model context are different things.
+
+Think:
+
+```text
+Database
+→ long-term application state
+
+Context window
+→ current model input
+```
+
+The application selects relevant information.
+
+---
+
+# 10.4 Redis for Short-Term State
+
+Redis may store:
+
+```text
+conversation:123:temporary_state
+```
+
+for:
+
+* temporary workflow state
+* rate limits
+* active sessions
+* short-lived caches
+
+But durable conversation history can remain in PostgreSQL.
+
+---
+
+# CHAPTER 11 — MONGODB IN AI APPLICATIONS
+
+MongoDB can be useful when AI applications deal with flexible document structures.
+
+Examples:
+
+```text
+AI-generated metadata
+Tool configurations
+Dynamic workflows
+Unstructured application documents
+Agent state
+```
+
+---
+
+# 11.1 Flexible AI Metadata
+
+Different documents may have different metadata:
+
+```json
+{
+  "type": "pdf",
+  "pages": 20,
+  "author": "A"
+}
+```
+
+Another:
+
+```json
+{
+  "type": "web",
+  "domain": "example.com",
+  "language": "en"
+}
+```
+
+MongoDB can naturally represent this variation.
+
+---
+
+# 11.2 But Don't Default to MongoDB
+
+If your AI system already has:
+
+```text
+users
+permissions
+documents
+chunks
+embeddings
+conversations
+```
+
+PostgreSQL + pgvector may be simpler.
+
+Use MongoDB when its flexible document model provides a real advantage.
+
+---
+
+# CHAPTER 12 — REDIS IN AI APPLICATIONS
+
+Redis becomes particularly useful in AI systems because model calls can be expensive and slow.
+
+---
+
+# 12.1 Cache Model Results
+
+Potential architecture:
+
+```text
+User Query
+   ↓
+Normalize
+   ↓
+Cache?
+ ┌───────┴───────┐
+ HIT             MISS
+ ↓                ↓
+Response          LLM
+                  ↓
+                Cache
+```
+
+---
+
+# 12.2 Cache Key
+
+A model response cache key may depend on:
+
+```text
+model
+prompt/version
+input
+parameters
+retrieval context
+```
+
+A simplistic key like:
+
+```text
+query text
+```
+
+may be unsafe if different users or contexts produce different answers.
+
+---
+
+# 12.3 User Isolation
+
+Never allow:
+
+```text
+User A
+ ↓
+cached response
+ ↓
+User B
+```
+
+unless the result is intentionally shared.
+
+AI caching must account for:
+
+```text
+tenant
+user
+permissions
+model
+prompt version
+retrieval context
+```
+
+---
+
+# 12.4 Rate Limiting
+
+AI APIs are expensive.
+
+Redis can enforce:
+
+```text
+requests/minute
+tokens/minute
+cost/day
+```
+
+depending on how the application tracks usage.
+
+---
+
+# CHAPTER 13 — AI CACHING & SEMANTIC CACHE CONCEPTS
+
+Traditional cache:
+
+```text
+exact key
+```
+
+AI requests can be semantically similar.
+
+For example:
+
+```text
+"What is Docker?"
+```
+
+and:
+
+```text
+"Explain Docker."
+```
+
+may be semantically similar.
+
+A semantic cache attempts to reuse results based on similarity rather than exact equality.
+
+---
+
+# 13.1 Semantic Cache
+
+Conceptually:
+
+```text
+Query
+ ↓
+Embedding
+ ↓
+Similarity search
+ ↓
+Similar previous query?
+ ├── yes → cached response
+ └── no → LLM
+```
+
+---
+
+# 13.2 Risks
+
+Semantic caching can return an incorrect result if similarity is too loosely defined.
+
+Therefore:
+
+```text
+similarity threshold
++
+scope
++
+freshness
++
+authorization
+```
+
+matter.
+
+---
+
+# 13.3 Don't Cache Everything
+
+Responses depending on:
+
+* current time
+* current user state
+* private documents
+* dynamic data
+
+may not be safely reusable.
+
+---
+
+# CHAPTER 14 — DATABASE MIGRATIONS & SCHEMA EVOLUTION
+
+Production databases change.
+
+Example:
+
+```text
+Version 1
+users(name)
+
+Version 2
+users(first_name, last_name)
+```
+
+The database must evolve without breaking the application.
+
+---
+
+# 14.1 Migration
+
+A migration is a version-controlled database change.
+
+Example:
+
+```text
+001_create_users.sql
+002_create_products.sql
+003_add_user_status.sql
+```
+
+---
+
+# 14.2 Why Git?
+
+Database structure should be versioned alongside application code.
+
+```text
+Application Version
+        +
+Database Migration Version
+```
+
+must remain compatible.
+
+---
+
+# 14.3 Migration History
+
+A migration system usually records:
+
+```text
+migration version
+timestamp
+applied status
+```
+
+so the environment knows which migrations have executed.
+
+---
+
+# 14.4 Never Manually Change Production Without Tracking It
+
+Bad:
+
+```text
+Production database
+↓
+random manual SQL
+```
+
+Now development/staging may not match production.
+
+Better:
+
+```text
+Migration
+ ↓
+Git
+ ↓
+CI/CD
+ ↓
+Database
+```
+
+---
+
+# CHAPTER 15 — MIGRATION SAFETY & ZERO-DOWNTIME CHANGES
+
+Schema changes can break running applications.
+
+---
+
+# 15.1 Dangerous Example
+
+Application version A expects:
+
+```text
+name
+```
+
+Migration immediately removes:
+
+```text
+name
+```
+
+before version B is deployed.
+
+Application A breaks.
+
+---
+
+# 15.2 Expand-and-Contract
+
+Use:
+
+```text
+Phase 1
+Add new field
+```
+
+Then:
+
+```text
+Phase 2
+Deploy application that supports both
+```
+
+Then:
+
+```text
+Phase 3
+Backfill data
+```
+
+Then:
+
+```text
+Phase 4
+Switch reads/writes
+```
+
+Finally:
+
+```text
+Phase 5
+Remove old field
+```
+
+---
+
+# 15.3 Example
+
+Old:
+
+```text
+full_name
+```
+
+New:
+
+```text
+first_name
+last_name
+```
+
+Safe evolution:
+
+```text
+Add first_name
+Add last_name
+        ↓
+Application writes both
+        ↓
+Backfill old records
+        ↓
+Application reads new fields
+        ↓
+Verify
+        ↓
+Remove full_name later
+```
+
+---
+
+# 15.4 Migration Checklist
+
+Before production:
+
+```text
+Does migration lock?
+How long might it run?
+Is it backward compatible?
+Is rollback possible?
+Does it require data backfill?
+How large is the table?
+What happens under live traffic?
+```
+
+---
+
+# CHAPTER 16 — DATABASE TESTING
+
+Database code must be tested.
+
+---
+
+# 16.1 Unit Testing
+
+Test application-level logic.
+
+---
+
+# 16.2 Integration Testing
+
+Run against a real database.
+
+This catches:
+
+* SQL errors
+* constraint issues
+* migration problems
+* transaction bugs
+* query differences
+
+---
+
+# 16.3 Test Database
+
+Use a separate database:
+
+```text
+development
+testing
+production
+```
+
+Never run destructive tests against production.
+
+---
+
+# 16.4 Seed Data
+
+Create reproducible test data.
+
+Example:
+
+```text
+test user
+test products
+test orders
+```
+
+---
+
+# 16.5 Migration Testing
+
+CI should be able to:
+
+```text
+Create empty DB
+ ↓
+Run all migrations
+ ↓
+Seed data
+ ↓
+Run tests
+```
+
+If migrations cannot build a clean database, there is a deployment problem.
+
+---
+
+# 16.6 Rollback Testing
+
+Where rollback is supported/appropriate, test it.
+
+But don't assume every production migration can be safely reversed.
+
+Sometimes the safer strategy is a forward corrective migration.
+
+---
+
+# CHAPTER 17 — DATABASE CI/CD
+
+Now database engineering connects directly with DevOps.
+
+A deployment pipeline may be:
+
+```text
+Developer
+   ↓
+Git
+   ↓
+CI
+   ↓
+Tests
+   ↓
+Build
+   ↓
+Migration validation
+   ↓
+Deploy
+   ↓
+Run migrations
+   ↓
+Application
+```
+
+---
+
+# 17.1 Migration Pipeline
+
+Example:
+
+```text
+Pull Request
+ ↓
+Create temporary DB
+ ↓
+Run migrations
+ ↓
+Run schema tests
+ ↓
+Run integration tests
+```
+
+This catches migration failures before production.
+
+---
+
+# 17.2 Production Deployment
+
+A safer strategy may be:
+
+```text
+Deploy compatible application
+        ↓
+Run migration
+        ↓
+Verify
+        ↓
+Enable new behavior
+```
+
+Exact ordering depends on the migration.
+
+---
+
+# 17.3 Migration Ownership
+
+Someone must own:
+
+```text
+migration ordering
+migration safety
+rollback/recovery strategy
+verification
+```
+
+Do not treat database changes as an afterthought to application deployment.
+
+---
+
+# CHAPTER 18 — DOCKERIZED DATABASE DEVELOPMENT
+
+Docker provides reproducible development environments.
+
+---
+
+# 18.1 Example
+
+```text
+Docker Compose
+│
+├── backend
+├── postgres
+├── mongo
+└── redis
+```
+
+This can give your team a consistent local stack.
+
+---
+
+# 18.2 Persistent Volumes
+
+Database containers are ephemeral by nature.
+
+Without persistent storage:
+
+```text
+container deleted
+ ↓
+database data may disappear
+```
+
+Use persistent volumes for development when needed.
+
+---
+
+# 18.3 Environment Variables
+
+Example:
+
+```text
+DATABASE_URL
+MONGO_URI
+REDIS_URL
+```
+
+Do not hard-code secrets into images or Git.
+
+---
+
+# 18.4 Health Checks
+
+A container being "running" doesn't always mean the database is ready.
+
+Your development environment should distinguish:
+
+```text
+process started
+```
+
+from:
+
+```text
+database ready
+```
+
+---
+
+# 18.5 Docker and Production
+
+Containerizing databases is not automatically the best production architecture.
+
+For production, evaluate:
+
+```text
+managed database
+vs
+self-managed database
+```
+
+based on operational requirements.
+
+---
+
+# CHAPTER 19 — MANAGED CLOUD DATABASES
+
+Cloud platforms provide managed database services.
+
+Examples include managed PostgreSQL and MongoDB offerings.
+
+---
+
+# 19.1 Why Managed?
+
+The provider may handle some combination of:
+
+* infrastructure
+* backups
+* patching
+* monitoring
+* replication
+* failover
+
+---
+
+# 19.2 What You Still Own
+
+You still own:
+
+```text
+Schema
+Queries
+Indexes
+Permissions
+Application behavior
+Data lifecycle
+Recovery requirements
+Cost
+```
+
+---
+
+# 19.3 Production Architecture
+
+A common architecture:
+
+```text
+Internet
+   ↓
+Load Balancer
+   ↓
+Backend
+   ↓
+Private Database Network
+   ↓
+Managed PostgreSQL
+```
+
+The database should generally not be directly exposed to the public internet.
+
+---
+
+# 19.4 Cloud Database Decisions
+
+Evaluate:
+
+```text
+Region
+Availability
+Backup
+RPO
+RTO
+Storage
+CPU
+Memory
+Connections
+Networking
+Cost
+```
+
+---
+
+# CHAPTER 20 — DATABASE SECURITY & SECRETS
+
+Security must exist across the entire lifecycle.
+
+---
+
+# 20.1 Credentials
+
+Never commit:
+
+```text
+DATABASE_PASSWORD=real_password
+```
+
+into Git.
+
+---
+
+# 20.2 Environment Configuration
+
+Development:
+
+```text
+.env
+```
+
+Production:
+
+```text
+Secret manager
+```
+
+The exact mechanism depends on the deployment platform.
+
+---
+
+# 20.3 Network Security
+
+Prefer:
+
+```text
+Backend
+   ↓
+Private network
+   ↓
+Database
+```
+
+instead of:
+
+```text
+Internet
+   ↓
+Database
+```
+
+---
+
+# 20.4 Least Privilege
+
+Different users may have:
+
+```text
+application role
+migration role
+readonly role
+administrative role
+```
+
+---
+
+# 20.5 Encryption
+
+Understand:
+
+```text
+Encryption in transit
+Encryption at rest
+```
+
+These solve different problems.
+
+---
+
+# 20.6 AI-Specific Security
+
+AI databases can contain:
+
+```text
+private documents
+conversation history
+user prompts
+internal company data
+embeddings
+tool data
+```
+
+A vector search system must enforce authorization.
+
+---
+
+# 20.7 Tenant Isolation
+
+For multi-tenant systems:
+
+```text
+tenant_id
+```
+
+should be treated as a security boundary where appropriate.
+
+A retrieval query must not accidentally return:
+
+```text
+Tenant B
+```
+
+data to:
+
+```text
+Tenant A
+```
+
+---
+
+# CHAPTER 21 — DATABASE OBSERVABILITY
+
+Database observability connects directly with DevOps.
+
+---
+
+# 21.1 What to Monitor
+
+At minimum:
+
+```text
+Connections
+CPU
+Memory
+Disk
+I/O
+Latency
+Query performance
+Locks
+Errors
+Replication
+WAL
+Vacuum
+Cache hit behavior
+Storage growth
+```
+
+---
+
+# 21.2 Application Metrics
+
+Database metrics alone aren't enough.
+
+Track:
+
+```text
+API latency
+DB latency
+query count
+error rate
+connection pool usage
+```
+
+---
+
+# 21.3 AI Database Metrics
+
+For RAG:
+
+```text
+retrieval latency
+retrieval count
+top-K
+filtering rate
+embedding generation time
+embedding failures
+retrieval quality
+cache hit rate
+```
+
+---
+
+# 21.4 Cost Metrics
+
+For AI systems:
+
+```text
+embedding generation cost
+LLM cost
+database storage
+vector index size
+cache usage
+```
+
+should be considered together.
+
+---
+
+# 21.5 Alerts
+
+Examples:
+
+```text
+Database disk > threshold
+Connection usage > threshold
+Replication lag > threshold
+Error rate > threshold
+Backup failure
+Migration failure
+```
+
+Alerts should correspond to actionable problems.
+
+---
+
+# CHAPTER 22 — BACKUP, RECOVERY & DISASTER PLANNING
+
+AI databases contain valuable information.
+
+Backup strategy must cover:
+
+```text
+Relational data
+Document data
+Vector data
+Configuration
+Migration history
+```
+
+---
+
+# 22.1 Source vs Derived Data
+
+This distinction is extremely useful.
+
+Example:
+
+```text
+Original PDF
+   ↓
+Chunk
+   ↓
+Embedding
+```
+
+Potentially:
+
+```text
+PDF = source
+Chunk = derived
+Embedding = derived
+```
+
+If embeddings disappear:
+
+```text
+recompute
+```
+
+If the original document disappears:
+
+```text
+data may be irrecoverable
+```
+
+Therefore backup priorities differ.
+
+---
+
+# 22.2 Backup Strategy
+
+For PostgreSQL:
+
+```text
+logical backups
++
+physical backups
++
+WAL/PITR where appropriate
+```
+
+For MongoDB:
+
+```text
+managed backup
+or
+appropriate dump/snapshot strategy
+```
+
+For Redis:
+
+```text
+depending on its role
+```
+
+A cache may not require the same recovery strategy as durable business data.
+
+---
+
+# 22.3 Restore Testing
+
+Do not say:
+
+> "We have backups."
+
+Say:
+
+> "We have successfully restored backups and verified application state."
+
+---
+
+# 22.4 Disaster Recovery
+
+Document:
+
+```text
+What failed?
+Where is backup?
+How do we restore?
+How long?
+What data could be lost?
+What dependencies are required?
+Who performs the recovery?
+```
+
+---
+
+# CHAPTER 23 — DATABASE INFRASTRUCTURE AS CODE
+
+Database infrastructure becomes part of DevOps.
+
+Tools such as Terraform can manage cloud infrastructure.
+
+Conceptually:
+
+```text
+Terraform
+    ↓
+Cloud
+    ↓
+Managed PostgreSQL
+```
+
+---
+
+# 23.1 What IaC Can Manage
+
+Depending on provider:
+
+```text
+Database instance
+Network
+Security groups
+Subnets
+Parameter settings
+Backup configuration
+Monitoring
+```
+
+---
+
+# 23.2 What IaC Does Not Replace
+
+Terraform does not replace:
+
+```text
+SQL migrations
+schema design
+data migrations
+query testing
+backup validation
+```
+
+Infrastructure and schema are related but different layers.
+
+---
+
+# 23.3 Infrastructure vs Data
+
+Think:
+
+```text
+Terraform
+→ infrastructure
+
+Migration tool
+→ schema
+
+Application
+→ business logic
+
+Database
+→ data
+```
+
+These layers interact but should not be confused.
+
+---
+
+# CHAPTER 24 — DATABASE OPERATIONS IN KUBERNETES
+
+Kubernetes introduces another deployment decision.
+
+Should you run your database inside Kubernetes?
+
+Not automatically.
+
+---
+
+# 24.1 Stateless Application
+
+Kubernetes is excellent for many stateless workloads:
+
+```text
+API pods
+worker pods
+frontend pods
+```
+
+---
+
+# 24.2 Stateful Database
+
+Databases require:
+
+```text
+persistent storage
+backup
+recovery
+replication
+upgrades
+careful networking
+```
+
+Therefore database operations in Kubernetes are more complex.
+
+---
+
+# 24.3 Common Production Pattern
+
+Often:
+
+```text
+Kubernetes
+   ↓
+Backend services
+   ↓
+Managed PostgreSQL
+```
+
+instead of:
+
+```text
+Kubernetes
+   ↓
+PostgreSQL Pod
+```
+
+This isn't an absolute rule.
+
+---
+
+# 24.4 When Self-Hosting Is Reasonable
+
+There can be valid reasons:
+
+* special infrastructure requirements
+* cost considerations
+* private environments
+* learning
+* operational control
+
+But you must own the operational burden.
+
+---
+
+# CHAPTER 25 — PRODUCTION AI DATABASE ARCHITECTURE
+
+Now combine everything.
+
+Suppose we are building a production AI knowledge platform.
+
+Architecture:
+
+```text
+                         USERS
+                           │
+                           ▼
+                     Load Balancer
+                           │
+                           ▼
+                     AI Backend API
+                           │
+        ┌──────────────────┼──────────────────┐
+        │                  │                  │
+        ▼                  ▼                  ▼
+   PostgreSQL           Redis          Object Storage
+        │                  │                  │
+        │               Cache              Files
+        │               Sessions
+        │               Rate limits
+        │
+        ├───────────────┐
+        ▼               ▼
+     pgvector       relational data
+        │
+        ▼
+   embeddings
+        │
+        ▼
+   RAG retrieval
+```
+
+---
+
+# 25.1 PostgreSQL
+
+Store:
+
+```text
+users
+organizations
+permissions
+documents
+document versions
+chunks
+embeddings
+conversations
+messages
+usage
+audit records
+```
+
+depending on the application's needs.
+
+---
+
+# 25.2 Object Storage
+
+Store:
+
+```text
+PDF
+DOCX
+images
+large files
+original documents
+```
+
+Don't put every large binary directly into PostgreSQL just because PostgreSQL can store binary data.
+
+Choose based on access and operational requirements.
+
+---
+
+# 25.3 Redis
+
+Store:
+
+```text
+cache
+sessions
+rate limits
+temporary workflow state
+possibly short-lived model results
+```
+
+---
+
+# 25.4 pgvector
+
+Store:
+
+```text
+embedding
+```
+
+associated with:
+
+```text
+chunk
+document
+tenant
+metadata
+```
+
+---
+
+# 25.5 Retrieval
+
+```text
+Question
+   ↓
+Embedding
+   ↓
+PostgreSQL + pgvector
+   ↓
+Permission filter
+   ↓
+Vector search
+   ↓
+Optional keyword search
+   ↓
+Ranking
+   ↓
+Context
+   ↓
+LLM
+```
+
+---
+
+# 25.6 Database Boundary
+
+The AI backend should not allow the LLM itself to directly execute arbitrary database operations.
+
+Instead:
+
+```text
+LLM
+ ↓
+Tool / application layer
+ ↓
+Validated operation
+ ↓
+Database
+```
+
+This is a critical security boundary.
+
+---
+
+# CHAPTER 26 — DATABASE COST ENGINEERING
+
+Production database engineering includes cost.
+
+---
+
+# 26.1 Cost Sources
+
+Consider:
+
+```text
+Compute
+Storage
+IO
+Backups
+Network
+Replication
+Managed-service pricing
+Vector indexes
+Cache memory
+AI embeddings
+```
+
+---
+
+# 26.2 Unnecessary Database
+
+Every extra datastore costs:
+
+```text
+Money
++
+Operations
++
+Monitoring
++
+Engineering time
+```
+
+---
+
+# 26.3 Query Cost
+
+Expensive queries can increase:
+
+```text
+CPU
+I/O
+connections
+latency
+cloud cost
+```
+
+---
+
+# 26.4 Vector Cost
+
+Embedding systems can become expensive because:
+
+```text
+more documents
+→ more chunks
+→ more embeddings
+→ more storage
+→ larger vector indexes
+```
+
+---
+
+# 26.5 Chunk Size
+
+If you create:
+
+```text
+1 million documents
+```
+
+and each produces:
+
+```text
+100 chunks
+```
+
+you now have:
+
+```text
+100 million chunks
+```
+
+This affects:
+
+```text
+embedding cost
+storage
+index size
+retrieval
+backup
+```
+
+Therefore chunking is also a database-cost decision.
+
+---
+
+# 26.6 Cost Optimization Workflow
+
+```text
+Measure
+ ↓
+Identify expensive component
+ ↓
+Understand workload
+ ↓
+Optimize
+ ↓
+Measure again
+```
+
+Do not optimize based on intuition alone.
+
+---
+
+# CHAPTER 27 — MINI-PROJECT
+
+# Project: AI Knowledge Database Platform
+
+This is the final database roadmap project.
+
+It connects everything learned across DB V01–V06.
+
+It is also intentionally aligned with the DevOps + AI roadmap.
+
+---
+
+# Project Objective
+
+Build the **database layer** for a production-style AI knowledge platform.
+
+You are not required to build the entire AI application here.
+
+The focus is:
+
+> **Database architecture, data modeling, retrieval, caching, migrations, testing, operations and recovery.**
+
+---
+
+# 27.1 Architecture
+
+```text
+                         Client
+                           │
+                           ▼
+                       AI Backend
+                           │
+         ┌─────────────────┼──────────────────┐
+         │                 │                  │
+         ▼                 ▼                  ▼
+   PostgreSQL            Redis          Object Storage
+         │                 │                  │
+         │              Cache              Files
+         │              Sessions
+         │              Rate limits
+         │
+         ├─────────────────────┐
+         ▼                     ▼
+    Relational Data         pgvector
+         │                     │
+         │                     ▼
+         │                 Embeddings
+         │                     │
+         └───────────────┬─────┘
+                         ▼
+                    RAG Retrieval
+```
+
+---
+
+# 27.2 PostgreSQL Schema
+
+Create tables approximately like:
+
+```text
+users
+organizations
+memberships
+documents
+document_versions
+document_chunks
+conversations
+messages
+usage_records
+```
+
+---
+
+# 27.3 Suggested Relationships
+
+```text
+organization
+    │
+    ├── memberships
+    │       ↓
+    │     users
+    │
+    └── documents
+            │
+            └── document_versions
+                    │
+                    └── document_chunks
+```
+
+---
+
+# 27.4 Document Model
+
+Example:
+
+```text
+documents
+-------------------------
+id
+organization_id
+title
+source_type
+source_url
+status
+created_at
+updated_at
+```
+
+---
+
+# 27.5 Document Version
+
+```text
+document_versions
+-------------------------
+id
+document_id
+version
+checksum
+status
+created_at
+```
+
+---
+
+# 27.6 Chunk Model
+
+```text
+document_chunks
+-------------------------
+id
+document_version_id
+chunk_index
+content
+metadata
+embedding
+embedding_model
+created_at
+```
+
+---
+
+# 27.7 Conversation Model
+
+```text
+conversations
+-------------------------
+id
+user_id
+organization_id
+title
+created_at
+
+messages
+-------------------------
+id
+conversation_id
+role
+content
+created_at
+```
+
+---
+
+# 27.8 Redis
+
+Use Redis for:
+
+```text
+resource cache
+session state
+rate limits
+temporary processing state
+```
+
+Example:
+
+```text
+rate:user:123
+session:abc
+cache:document:456
+```
+
+---
+
+# 27.9 Object Storage
+
+Store:
+
+```text
+original files
+```
+
+Database stores:
+
+```text
+file metadata
+location
+checksum
+ownership
+status
+```
+
+---
+
+# PHASE 1 — DATA MODEL
+
+Design:
+
+```text
+ER diagram
+```
+
+and:
+
+```text
+document lifecycle
+```
+
+and:
+
+```text
+retrieval data flow
+```
+
+---
+
+# PHASE 2 — DATABASE IMPLEMENTATION
+
+Implement:
+
+```text
+PostgreSQL
+pgvector
+Redis
+```
+
+locally.
+
+---
+
+# PHASE 3 — MIGRATIONS
+
+Create migrations:
+
+```text
+001_initial_schema
+002_documents
+003_document_versions
+004_chunks
+005_conversations
+006_indexes
+007_vector_support
+```
+
+The exact numbering is up to you.
+
+---
+
+# PHASE 4 — SEED DATA
+
+Create:
+
+```text
+users
+organizations
+documents
+versions
+chunks
+conversations
+```
+
+with realistic sample data.
+
+---
+
+# PHASE 5 — EMBEDDING PIPELINE
+
+Build a small pipeline:
+
+```text
+text
+ ↓
+embedding model
+ ↓
+vector
+ ↓
+PostgreSQL
+```
+
+Store:
+
+```text
+embedding
+embedding model
+dimension
+```
+
+---
+
+# PHASE 6 — VECTOR SEARCH
+
+Implement:
+
+```text
+query
+ ↓
+embedding
+ ↓
+pgvector
+ ↓
+top K
+```
+
+---
+
+# PHASE 7 — FILTERED RETRIEVAL
+
+Implement:
+
+```text
+tenant filter
++
+permission filter
++
+vector similarity
+```
+
+This is mandatory.
+
+---
+
+# PHASE 8 — HYBRID SEARCH
+
+Add:
+
+```text
+keyword search
++
+vector search
+```
+
+and combine the results.
+
+You don't need to build a sophisticated production-grade ranking algorithm.
+
+The goal is to understand the architecture.
+
+---
+
+# PHASE 9 — CACHE
+
+Implement:
+
+```text
+GET document
+ ↓
+Redis
+ ↓
+MongoDB/PostgreSQL source
+```
+
+depending on where the authoritative data lives.
+
+---
+
+# PHASE 10 — RATE LIMITING
+
+Implement a basic Redis-backed limit.
+
+Example:
+
+```text
+100 requests/minute/user
+```
+
+---
+
+# PHASE 11 — TESTING
+
+Tests should cover:
+
+```text
+schema creation
+migrations
+constraints
+CRUD
+retrieval
+permissions
+cache behavior
+rate limiting
+transactions
+```
+
+---
+
+# PHASE 12 — FAILURE TESTING
+
+Simulate:
+
+```text
+Redis unavailable
+PostgreSQL unavailable
+vector search failure
+embedding failure
+migration failure
+cache stale
+permission mismatch
+missing document
+```
+
+---
+
+# PHASE 13 — BACKUP
+
+Create:
+
+```text
+PostgreSQL backup
+```
+
+and document:
+
+```text
+restore procedure
+```
+
+Also document what happens to:
+
+```text
+embeddings
+original files
+Redis
+```
+
+during recovery.
+
+---
+
+# PHASE 14 — DOCKER
+
+Create a local environment:
+
+```text
+docker-compose
+│
+├── backend
+├── postgres
+└── redis
+```
+
+Object storage can initially be represented by a local development service or another suitable local mechanism.
+
+---
+
+# PHASE 15 — CI
+
+Pipeline:
+
+```text
+Git Push
+   ↓
+CI
+   ↓
+Start PostgreSQL
+   ↓
+Run migrations
+   ↓
+Seed test data
+   ↓
+Run tests
+   ↓
+Destroy environment
+```
+
+---
+
+# PHASE 16 — OBSERVABILITY
+
+Track:
+
+```text
+DB latency
+query latency
+connection usage
+cache hit rate
+cache miss rate
+retrieval latency
+embedding latency
+vector search latency
+errors
+storage
+```
+
+---
+
+# PROJECT STRUCTURE
+
+```text
+ai-knowledge-database/
+│
+├── README.md
+│
+├── docs/
+│   ├── architecture.md
+│   ├── data-model.md
+│   ├── database-responsibilities.md
+│   ├── retrieval-architecture.md
+│   ├── migration-strategy.md
+│   ├── backup-recovery.md
+│   ├── security.md
+│   ├── observability.md
+│   ├── cost-analysis.md
+│   └── failure-drills.md
+│
+├── migrations/
+│   ├── 001_initial.sql
+│   ├── 002_documents.sql
+│   ├── 003_chunks.sql
+│   └── ...
+│
+├── schema/
+│   └── schema.sql
+│
+├── seed/
+│   └── seed.sql
+│
+├── queries/
+│   ├── relational.sql
+│   ├── vector.sql
+│   ├── hybrid.sql
+│   └── analytics.sql
+│
+├── scripts/
+│   ├── backup.sh
+│   ├── restore.sh
+│   └── health-check.sh
+│
+├── tests/
+│
+├── docker/
+│
+└── ci/
+```
+
+---
+
+# CHAPTER 28 — DATABASE DEVOPS FAILURE DRILLS
+
+This chapter turns the roadmap into operational skill.
+
+---
+
+# DRILL 1 — MIGRATION FAILURE
+
+Create a migration that fails intentionally.
+
+Observe:
+
+```text
+CI
+ ↓
+Migration
+ ↓
+Failure
+```
+
+Determine:
+
+```text
+Was the database partially changed?
+How did the migration system respond?
+How would you recover?
+```
+
+---
+
+# DRILL 2 — BACKWARD COMPATIBILITY
+
+Run:
+
+```text
+Application V1
++
+new database schema
+```
+
+Then:
+
+```text
+Application V2
++
+old schema
+```
+
+where practical.
+
+Identify incompatible changes.
+
+---
+
+# DRILL 3 — REDIS FAILURE
+
+Stop Redis.
+
+Measure:
+
+```text
+API behavior
+latency
+error rate
+fallback behavior
+```
+
+Determine whether Redis is:
+
+```text
+critical
+or
+optional
+```
+
+for each feature.
+
+---
+
+# DRILL 4 — VECTOR INDEX FAILURE
+
+Remove/rebuild a vector index in a controlled environment.
+
+Measure:
+
+```text
+retrieval latency
+query behavior
+rebuild time
+```
+
+---
+
+# DRILL 5 — WRONG TENANT FILTER
+
+Create:
+
+```text
+Tenant A
+Tenant B
+```
+
+and ensure their documents cannot cross retrieval boundaries.
+
+Then deliberately remove the tenant filter in a test environment.
+
+Verify that the security test catches it.
+
+This is an extremely important AI database security exercise.
+
+---
+
+# DRILL 6 — STALE EMBEDDINGS
+
+Change a document.
+
+Do not regenerate embeddings.
+
+Run retrieval.
+
+Observe stale content.
+
+Then implement:
+
+```text
+document update
+ ↓
+invalidate old version
+ ↓
+re-chunk
+ ↓
+re-embed
+ ↓
+activate new version
+```
+
+---
+
+# DRILL 7 — BACKUP + RESTORE
+
+Perform:
+
+```text
+backup
+ ↓
+destroy test database
+ ↓
+restore
+ ↓
+verify
+```
+
+Check:
+
+```text
+users
+documents
+chunks
+embeddings
+conversations
+```
+
+---
+
+# DRILL 8 — CACHE STAMPEDE
+
+Expire a popular key.
+
+Generate concurrent requests.
+
+Measure database load.
+
+Then test one mitigation strategy.
+
+---
+
+# DRILL 9 — CONNECTION EXHAUSTION
+
+Create an intentionally excessive connection workload in a disposable environment.
+
+Observe:
+
+```text
+application
+database
+latency
+errors
+```
+
+Then restore a sensible pool configuration.
+
+---
+
+# DRILL 10 — STORAGE PRESSURE
+
+In a controlled environment, simulate low disk availability.
+
+Determine:
+
+```text
+What alerts?
+What breaks first?
+How does PostgreSQL respond?
+What recovery action is required?
+```
+
+---
+
+# CHAPTER 29 — FINAL DATABASE ENGINEERING ASSESSMENT
+
+This is the final assessment for the entire six-volume database roadmap.
+
+---
+
+# PART 1 — FUNDAMENTALS
+
+Explain:
+
+### 1.
+
+What is a database?
+
+### 2.
+
+What problem does a DBMS solve?
+
+### 3.
+
+What is a relational model?
+
+### 4.
+
+What is normalization?
+
+### 5.
+
+Why do indexes exist?
+
+---
+
+# PART 2 — POSTGRESQL
+
+Explain:
+
+### 6.
+
+How does PostgreSQL execute a query?
+
+### 7.
+
+What is MVCC?
+
+### 8.
+
+Why does VACUUM exist?
+
+### 9.
+
+What is WAL?
+
+### 10.
+
+What is the difference between a transaction and a session?
+
+### 11.
+
+What causes a deadlock?
+
+### 12.
+
+Why can connection pools become dangerous?
+
+---
+
+# PART 3 — SQL
+
+Solve:
+
+### 13.
+
+Top five customers by revenue.
+
+### 14.
+
+Top three products per category.
+
+### 15.
+
+Customers with no orders.
+
+### 16.
+
+Month-over-month revenue.
+
+### 17.
+
+Running revenue.
+
+### 18.
+
+Latest order per customer.
+
+---
+
+# PART 4 — MONGODB
+
+Explain:
+
+### 19.
+
+When would you embed?
+
+### 20.
+
+When would you reference?
+
+### 21.
+
+Why are unbounded arrays dangerous?
+
+### 22.
+
+What is an aggregation pipeline?
+
+---
+
+# PART 5 — REDIS
+
+Explain:
+
+### 23.
+
+What is cache-aside?
+
+### 24.
+
+What is cache invalidation?
+
+### 25.
+
+What is cache stampede?
+
+### 26.
+
+How would you implement rate limiting?
+
+---
+
+# PART 6 — AI DATABASES
+
+Explain:
+
+### 27.
+
+What is an embedding?
+
+### 28.
+
+Why store embeddings in a database?
+
+### 29.
+
+What is vector similarity?
+
+### 30.
+
+What is approximate nearest-neighbor search?
+
+### 31.
+
+Why does metadata filtering matter in RAG?
+
+### 32.
+
+Why is tenant filtering a security boundary?
+
+---
+
+# PART 7 — DATABASE DEVOPS
+
+Explain:
+
+### 33.
+
+What is a database migration?
+
+### 34.
+
+Why should migrations be version-controlled?
+
+### 35.
+
+What is expand-and-contract?
+
+### 36.
+
+How should database migrations be tested in CI?
+
+### 37.
+
+Why is a database container different from a production database strategy?
+
+### 38.
+
+What is the difference between infrastructure and schema?
+
+---
+
+# PART 8 — PRODUCTION
+
+Explain:
+
+### 39.
+
+What is RPO?
+
+### 40.
+
+What is RTO?
+
+### 41.
+
+Why isn't replication a backup?
+
+### 42.
+
+Why should restore procedures be tested?
+
+### 43.
+
+What database metrics would you monitor?
+
+### 44.
+
+How would you investigate a suddenly slow API?
+
+---
+
+# PART 9 — ARCHITECTURE
+
+Design a database architecture for:
+
+> A multi-tenant AI knowledge platform with document upload, RAG search, conversations, authentication, caching and rate limiting.
+
+Your architecture should identify:
+
+```text
+Primary database
+Vector storage
+Object storage
+Cache
+Source of truth
+Tenant isolation
+Backups
+Migrations
+Monitoring
+Failure handling
+```
+
+---
+
+# FINAL DATABASE ENGINEERING CHALLENGE
+
+Without notes, design this:
+
+```text
+Production AI Knowledge Platform
+```
+
+Requirements:
+
+```text
+10,000 users
+500 organizations
+1 million documents
+50 million chunks
+Vector search
+Document permissions
+Conversation history
+Rate limiting
+Caching
+Daily backups
+Production deployments
+CI/CD
+Cloud infrastructure
+```
+
+You must answer:
+
+---
+
+## 1. What database stores what?
+
+---
+
+## 2. What is the source of truth?
+
+---
+
+## 3. How are documents modeled?
+
+---
+
+## 4. How are chunks modeled?
+
+---
+
+## 5. Where are embeddings stored?
+
+---
+
+## 6. How are vectors indexed?
+
+---
+
+## 7. How are tenant permissions enforced?
+
+---
+
+## 8. What does Redis store?
+
+---
+
+## 9. What does object storage store?
+
+---
+
+## 10. How are migrations deployed?
+
+---
+
+## 11. How are backups performed?
+
+---
+
+## 12. How is recovery tested?
+
+---
+
+## 13. What happens if Redis fails?
+
+---
+
+## 14. What happens if PostgreSQL fails?
+
+---
+
+## 15. What happens if embeddings become invalid?
+
+---
+
+## 16. How is the database monitored?
+
+---
+
+## 17. How do you control cost?
+
+---
+
+## 18. How would you evolve the schema without breaking the running application?
+
+---
+
+# SPACED REPETITION — COMPLETE ROADMAP
+
+After finishing V06, don't immediately forget V01.
+
+Use periodic review.
+
+---
+
+# Review Cycle 1
+
+Review:
+
+```text
+V01
+Database Fundamentals
+```
+
+Focus:
+
+```text
+Data modeling
+Normalization
+Relationships
+Transactions
+```
+
+---
+
+# Review Cycle 2
+
+Review:
+
+```text
+V02
+PostgreSQL + SQL
+```
+
+Focus:
+
+```text
+CRUD
+Joins
+Transactions
+Constraints
+```
+
+---
+
+# Review Cycle 3
+
+Review:
+
+```text
+V03
+Query Engineering
+```
+
+Focus:
+
+```text
+CTEs
+Window functions
+EXPLAIN
+Optimization
+```
+
+---
+
+# Review Cycle 4
+
+Review:
+
+```text
+V04
+PostgreSQL Production
+```
+
+Focus:
+
+```text
+MVCC
+WAL
+VACUUM
+Locks
+Backups
+Recovery
+```
+
+---
+
+# Review Cycle 5
+
+Review:
+
+```text
+V05
+MongoDB + Redis
+```
+
+Focus:
+
+```text
+Document modeling
+Caching
+Polyglot persistence
+```
+
+---
+
+# Review Cycle 6
+
+Review:
+
+```text
+V06
+AI + Database DevOps
+```
+
+Focus:
+
+```text
+pgvector
+RAG
+Migrations
+CI/CD
+Production architecture
+```
+
+---
+
+# DATABASE ENGINEERING MASTER MENTAL MODEL
+
+The entire six-volume roadmap can now be compressed into one system:
+
+```text
+                         REQUIREMENTS
+                              │
+                              ▼
+                         DATA MODEL
+                              │
+                ┌─────────────┼─────────────┐
+                ▼             ▼             ▼
+           RELATIONAL      DOCUMENT      KEY-VALUE
+                │             │             │
+                ▼             ▼             ▼
+          PostgreSQL       MongoDB        Redis
+                │
+                ├──────────────┐
+                ▼              ▼
+             SQL          pgvector
+                │              │
+                │              ▼
+                │          Embeddings
+                │              │
+                │              ▼
+                │          RAG Search
+                │              │
+                └───────┬──────┘
+                        ▼
+                  BACKEND SYSTEM
+                        │
+                        ▼
+                   APPLICATION
+                        │
+             ┌──────────┼──────────┐
+             ▼          ▼          ▼
+           Docker      CI/CD      Cloud
+             │          │          │
+             └──────────┼──────────┘
+                        ▼
+                  PRODUCTION DB
+                        │
+          ┌─────────────┼─────────────┐
+          ▼             ▼             ▼
+       Security     Observability   Backups
+          │             │             │
+          └─────────────┼─────────────┘
+                        ▼
+                    Recovery
+```
+
+---
+
+# THE DATABASE ENGINEERING LOOP
+
+Everything you learned can ultimately be reduced to:
+
+```text
+REQUIREMENT
+    ↓
+MODEL
+    ↓
+IMPLEMENT
+    ↓
+QUERY
+    ↓
+MEASURE
+    ↓
+OPTIMIZE
+    ↓
+SECURE
+    ↓
+DEPLOY
+    ↓
+OBSERVE
+    ↓
+BACKUP
+    ↓
+RECOVER
+    ↓
+IMPROVE
+```
+
+And for every engineering decision:
+
+```text
+Problem
+   ↓
+Evidence
+   ↓
+Options
+   ↓
+Trade-offs
+   ↓
+Decision
+   ↓
+Measurement
+   ↓
+Verification
+```
+
+This is the same engineering mindset you developed in the DevOps roadmap.
+
+---
+
+# DATABASE ROADMAP — FINAL STRUCTURE
+
+You have now completed the design of the complete six-volume Database Engineering roadmap:
+
+```text
+DB V01
+Database Fundamentals & Data Modeling
+│
+├── Database concepts
+├── Data models
+├── Relational fundamentals
+├── Keys
+├── Relationships
+├── ER modeling
+├── Normalization
+├── Transactions
+├── Concurrency
+├── Index fundamentals
+└── Database design
+
+        ↓
+
+DB V02
+PostgreSQL & SQL Foundations
+│
+├── PostgreSQL
+├── SQL
+├── Tables
+├── Constraints
+├── CRUD
+├── Aggregation
+├── Joins
+├── Transactions
+├── Roles
+├── Backup
+└── Backend integration
+
+        ↓
+
+DB V03
+SQL & Query Engineering
+│
+├── Complex joins
+├── Subqueries
+├── CTEs
+├── Recursive queries
+├── Aggregation
+├── Window functions
+├── Pagination
+├── Query correctness
+├── EXPLAIN
+├── Performance
+└── Optimization
+
+        ↓
+
+DB V04
+PostgreSQL Internals & Production Engineering
+│
+├── Architecture
+├── Storage
+├── MVCC
+├── Transactions
+├── Locks
+├── WAL
+├── Recovery
+├── VACUUM
+├── Indexes
+├── Planner
+├── Connection pooling
+├── Backup
+├── PITR
+├── Replication
+├── HA
+└── Production troubleshooting
+
+        ↓
+
+DB V05
+MongoDB, Redis & Polyglot Persistence
+│
+├── NoSQL
+├── MongoDB
+├── Document modeling
+├── Embedding
+├── Referencing
+├── Aggregation
+├── MongoDB transactions
+├── Redis
+├── Caching
+├── TTL
+├── Sessions
+├── Rate limiting
+├── Cache invalidation
+└── Polyglot persistence
+
+        ↓
+
+DB V06
+AI-Native Databases & Database DevOps
+│
+├── AI data architecture
+├── Embeddings
+├── pgvector
+├── Vector search
+├── Vector indexes
+├── Metadata filtering
+├── Hybrid retrieval
+├── RAG database design
+├── AI state
+├── AI caching
+├── Migrations
+├── Schema evolution
+├── Database testing
+├── CI/CD
+├── Docker
+├── Cloud databases
+├── Security
+├── Observability
+├── Backup/recovery
+├── IaC
+├── Kubernetes
+└── Production AI database architecture
+```
+
+---
+
+# FINAL DATABASE ENGINEERING OUTCOME
+
+After completing all six volumes, you should not think:
+
+> "I know PostgreSQL, MongoDB and Redis."
+
+The desired outcome is:
+
+> **"I can reason about data, choose an appropriate storage model, design schemas, write and optimize queries, integrate databases into backend systems, operate them in production, and design database infrastructure for modern AI applications."**
+
+That is the actual goal of this roadmap.
+
+---
+
+# DATABASE ROADMAP → DEVOPS + AI ROADMAP CONNECTION
+
+The two roadmaps are intentionally connected.
+
+```text
+DATABASE
+V01
+Fundamentals
+        │
+        ├──────────────→ DEVOPS V01–V03
+        │
+        ▼
+DATABASE
+V02–V03
+PostgreSQL + SQL
+        │
+        ├──────────────→ DEVOPS V07–V08
+        │
+        ▼
+DATABASE
+V04
+Production PostgreSQL
+        │
+        ├──────────────→ Docker
+        ├──────────────→ AWS
+        ├──────────────→ Kubernetes
+        └──────────────→ SRE
+        │
+        ▼
+DATABASE
+V05
+MongoDB + Redis
+        │
+        ├──────────────→ Backend
+        ├──────────────→ Distributed systems
+        └──────────────→ Production architecture
+        │
+        ▼
+DATABASE
+V06
+AI + Database DevOps
+        │
+        ├──────────────→ AI V09
+        ├──────────────→ RAG V10
+        ├──────────────→ AI Apps V11
+        ├──────────────→ Flagship Project
+        ├──────────────→ Docker V12
+        ├──────────────→ CI/CD V13
+        ├──────────────→ AWS V14
+        ├──────────────→ Terraform V15
+        ├──────────────→ Kubernetes V16
+        ├──────────────→ LLMOps V19
+        └──────────────→ SRE V20
+```
+
+The important thing is that the Database roadmap does **not** exist independently anymore.
+
+It becomes one layer of your larger engineering system:
+
+```text
+                    SOFTWARE ENGINEERING
+                           │
+          ┌────────────────┼────────────────┐
+          ▼                ▼                ▼
+       Backend           Database          DSA
+          │                │                │
+          └────────────────┼────────────────┘
+                           ▼
+                         DevOps
+                           │
+                           ▼
+                           AI
+                           │
+                           ▼
+                     FLAGSHIP SYSTEM
+                           │
+                           ▼
+                     PRODUCTION
+```
+
+---
+
+# FINAL RULE FOR THE REST OF THE ROADMAP
+
+From this point onward, when the flagship project is created after DevOps + AI V11, the database knowledge from these six volumes should be **applied directly to that flagship project**.
+
+We do not need another separate database project just to prove that you know databases.
+
+Instead:
+
+```text
+DB Roadmap
+     ↓
+Knowledge
+     ↓
+Flagship Project
+     ↓
+Production Database
+     ↓
+Docker
+     ↓
+CI/CD
+     ↓
+AWS
+     ↓
+Terraform
+     ↓
+Kubernetes
+     ↓
+Observability
+     ↓
+LLMOps
+     ↓
+SRE
+```
+
+That gives you one continuous engineering system instead of dozens of disconnected tutorial projects.
+
+---
+
+# DB V06 COMPLETION CRITERIA
+
+The Database Engineering roadmap is complete when you can confidently:
+
+* Design relational schemas.
+* Normalize and denormalize intentionally.
+* Model relationships.
+* Write intermediate and advanced SQL.
+* Reason about query correctness.
+* Optimize SQL using evidence.
+* Explain PostgreSQL architecture.
+* Understand MVCC, WAL, vacuum and locks.
+* Design backup and recovery strategies.
+* Operate PostgreSQL in production.
+* Model MongoDB documents.
+* Decide between embedding and referencing.
+* Use Redis appropriately.
+* Design caching and invalidation.
+* Design polyglot persistence.
+* Understand vector databases.
+* Use PostgreSQL + pgvector.
+* Design RAG storage.
+* Store and retrieve embeddings.
+* Enforce tenant/permission filtering.
+* Design AI conversation storage.
+* Design AI caching.
+* Create safe database migrations.
+* Test migrations.
+* Integrate databases into CI/CD.
+* Run databases in local Docker environments.
+* Understand managed cloud database architecture.
+* Secure database credentials and network access.
+* Monitor database systems.
+* Design backup/recovery procedures.
+* Understand database infrastructure as code.
+* Reason about databases in Kubernetes.
+* Perform database failure drills.
+* Design a production database architecture for an AI application.
+
+---
+
+# FINAL STATEMENT
+
+The database roadmap is now complete.
+
+The six volumes form one progression:
+
+```text
+UNDERSTAND
+    ↓
+MODEL
+    ↓
+QUERY
+    ↓
+OPTIMIZE
+    ↓
+OPERATE
+    ↓
+DISTRIBUTE
+    ↓
+INTEGRATE WITH AI
+    ↓
+AUTOMATE
+    ↓
+DEPLOY
+    ↓
+OBSERVE
+    ↓
+RECOVER
+```
+
+You are no longer learning databases as isolated tools.
+
+You are learning **database engineering as a production engineering discipline**.
+
+**End of DB V06 — End of Database Engineering Roadmap.**

@@ -1,0 +1,3442 @@
+# DB V03 — SQL & Query Engineering
+
+## Database Engineering Roadmap — Volume 03
+
+---
+
+# 0. Volume Purpose
+
+In DB V02, you learned how to use PostgreSQL and write normal application SQL.
+
+Now we move to a different level.
+
+The goal of DB V03 is to develop **query engineering ability**.
+
+You should be able to look at a business question and think:
+
+> What data do I need?
+
+> Which tables contain it?
+
+> How are those tables related?
+
+> What intermediate result do I need?
+
+> Should I use a join, subquery, CTE, aggregation, or window function?
+
+> Is the query logically correct?
+
+> Is it efficient enough?
+
+> How can I prove what PostgreSQL is doing?
+
+This volume is therefore not about memorizing advanced SQL syntax.
+
+It is about **reasoning with data**.
+
+---
+
+# 1. Where V03 Fits
+
+Our progression is:
+
+```text
+DB V01
+Database Fundamentals
+        ↓
+DB V02
+PostgreSQL + SQL Foundations
+        ↓
+DB V03
+SQL + Query Engineering
+        ↓
+DB V04
+PostgreSQL Internals + Production
+```
+
+V03 is the bridge between:
+
+> "I know SQL."
+
+and:
+
+> "I can solve real data problems using SQL."
+
+---
+
+# 2. Prerequisites
+
+You should already understand:
+
+* Tables
+* Primary keys
+* Foreign keys
+* Relationships
+* Constraints
+* PostgreSQL basics
+* `SELECT`
+* `WHERE`
+* `ORDER BY`
+* `GROUP BY`
+* `HAVING`
+* Basic joins
+* Basic subqueries
+* Transactions
+
+From V02.
+
+---
+
+# 3. Core Philosophy
+
+We will repeatedly use this process:
+
+```text
+Business Question
+       ↓
+Understand the required result
+       ↓
+Identify required tables
+       ↓
+Understand relationships
+       ↓
+Build the query incrementally
+       ↓
+Verify correctness
+       ↓
+Inspect the query plan
+       ↓
+Improve if necessary
+       ↓
+Document the reasoning
+```
+
+The most important principle:
+
+> **Correctness comes before optimization.**
+
+A fast query that returns the wrong answer is still a bad query.
+
+---
+
+# 4. Volume Chapters
+
+## Chapter 01 — How to Think About SQL Problems
+
+## Chapter 02 — Relational Query Thinking
+
+## Chapter 03 — Advanced JOIN Reasoning
+
+## Chapter 04 — Subqueries Deep Dive
+
+## Chapter 05 — Common Table Expressions
+
+## Chapter 06 — Recursive Queries
+
+## Chapter 07 — Set Operations
+
+## Chapter 08 — Conditional Logic & Data Transformation
+
+## Chapter 09 — Advanced Aggregation
+
+## Chapter 10 — Window Functions
+
+## Chapter 11 — Ranking, Running Totals & Analytics
+
+## Chapter 12 — NULL, Three-Valued Logic & Edge Cases
+
+## Chapter 13 — Date & Time Query Engineering
+
+## Chapter 14 — Text Search & String Query Patterns
+
+## Chapter 15 — Pagination & Result Navigation
+
+## Chapter 16 — Query Composition & Readability
+
+## Chapter 17 — Common SQL Anti-Patterns
+
+## Chapter 18 — Query Correctness & Testing
+
+## Chapter 19 — EXPLAIN & Query Plans
+
+## Chapter 20 — Query Performance Fundamentals
+
+## Chapter 21 — Index-Aware Query Engineering
+
+## Chapter 22 — Query Optimization Workflow
+
+## Chapter 23 — Real-World Query Debugging
+
+## Chapter 24 — SQL Security & Safe Query Construction
+
+## Chapter 25 — Mini-Project: Business Analytics Query Engine
+
+## Chapter 26 — Query Challenge Set
+
+## Chapter 27 — Final Review & Engineering Assessment
+
+---
+
+# CHAPTER 01 — HOW TO THINK ABOUT SQL PROBLEMS
+
+The biggest mistake beginners make is starting with syntax.
+
+They see:
+
+> "Find the top five customers by revenue."
+
+and immediately start typing:
+
+```sql
+SELECT ...
+```
+
+Don't.
+
+First translate the question.
+
+---
+
+# 1.1 Identify the Result
+
+Question:
+
+> Find the top five customers by total spending.
+
+What should one result row represent?
+
+```text
+One customer
+```
+
+What information do we need?
+
+```text
+customer_id
+customer_name
+total_spending
+```
+
+---
+
+# 1.2 Identify the Source Data
+
+We might need:
+
+```text
+customers
+orders
+order_items
+products
+```
+
+But perhaps only:
+
+```text
+customers
+orders
+```
+
+depending on the schema.
+
+The query should use only what is necessary.
+
+---
+
+# 1.3 Identify the Relationship
+
+For example:
+
+```text
+customers
+    ↓
+orders
+```
+
+```text
+customer.id
+      =
+orders.customer_id
+```
+
+---
+
+# 1.4 Identify the Calculation
+
+Total spending might be:
+
+```text
+SUM(order.amount)
+```
+
+---
+
+# 1.5 Identify the Ranking
+
+```text
+ORDER BY total_spending DESC
+LIMIT 5
+```
+
+Only after thinking through all of this should we write SQL.
+
+---
+
+# 1.6 The Query Design Template
+
+For many problems:
+
+```text
+1. What should one row represent?
+2. Which tables are required?
+3. How are they related?
+4. Which rows should be included?
+5. Which columns should be returned?
+6. What calculations are required?
+7. Do we need grouping?
+8. Do we need ranking?
+9. Are there edge cases?
+10. Is performance important?
+```
+
+This thinking is more valuable than memorizing syntax.
+
+---
+
+# CHAPTER 02 — RELATIONAL QUERY THINKING
+
+SQL works naturally with sets of rows.
+
+Think in terms of:
+
+```text
+Input relation
+      ↓
+Transformation
+      ↓
+Output relation
+```
+
+For example:
+
+```text
+orders
+  ↓
+filter completed orders
+  ↓
+group by customer
+  ↓
+calculate revenue
+  ↓
+sort
+  ↓
+top customers
+```
+
+---
+
+# 2.1 Don't Think Only Row-by-Row
+
+Procedural thinking:
+
+```text
+for each order:
+    find customer
+    add amount
+```
+
+SQL thinking:
+
+```text
+SELECT ...
+FROM orders
+GROUP BY customer_id
+```
+
+The database works with sets.
+
+This is one of the biggest mental shifts in SQL.
+
+---
+
+# 2.2 Intermediate Results
+
+Complex SQL becomes easier when you imagine intermediate tables.
+
+For example:
+
+```text
+orders
+   ↓
+completed_orders
+   ↓
+customer_totals
+   ↓
+ranked_customers
+   ↓
+top_5
+```
+
+CTEs later give us a clean way to represent this reasoning.
+
+---
+
+# 2.3 Query Correctness
+
+Always ask:
+
+> What does one row in my result represent?
+
+If you cannot answer that, your query probably isn't fully understood.
+
+This is the **grain** of the result.
+
+---
+
+# 2.4 Grain
+
+Example:
+
+```text
+One row per customer
+```
+
+versus:
+
+```text
+One row per order
+```
+
+versus:
+
+```text
+One row per order item
+```
+
+Mixing these levels accidentally causes many SQL bugs.
+
+---
+
+# CHAPTER 03 — ADVANCED JOIN REASONING
+
+Joins are not just syntax.
+
+They represent relationships between sets.
+
+---
+
+# 3.1 INNER JOIN
+
+Suppose:
+
+```text
+customers
+orders
+```
+
+Query:
+
+```sql
+SELECT
+    c.id,
+    c.name,
+    o.id AS order_id
+FROM customers c
+JOIN orders o
+    ON o.customer_id = c.id;
+```
+
+Result:
+
+> Customers that have matching orders.
+
+---
+
+# 3.2 LEFT JOIN
+
+```sql
+SELECT
+    c.id,
+    c.name,
+    o.id AS order_id
+FROM customers c
+LEFT JOIN orders o
+    ON o.customer_id = c.id;
+```
+
+Result:
+
+> Every customer, plus matching orders where they exist.
+
+---
+
+# 3.3 Classic Mistake
+
+Consider:
+
+```sql
+SELECT
+    c.id,
+    c.name,
+    o.id
+FROM customers c
+LEFT JOIN orders o
+    ON o.customer_id = c.id
+WHERE o.status = 'completed';
+```
+
+The `WHERE` condition removes rows where `o` is NULL.
+
+The query may effectively behave like an inner join.
+
+If you want to preserve customers without orders while restricting the joined rows:
+
+```sql
+SELECT
+    c.id,
+    c.name,
+    o.id
+FROM customers c
+LEFT JOIN orders o
+    ON o.customer_id = c.id
+   AND o.status = 'completed';
+```
+
+Understanding **where conditions are applied** is crucial.
+
+---
+
+# 3.4 Join Multiplication
+
+Suppose:
+
+```text
+Customer A
+   ↓
+3 orders
+```
+
+and each order has:
+
+```text
+4 order items
+```
+
+Joining everything can produce:
+
+```text
+3 × 4 = 12 rows
+```
+
+This may cause incorrect aggregates if you don't understand the result grain.
+
+---
+
+# 3.5 Incorrect Revenue
+
+Imagine joining:
+
+```text
+customers
+orders
+order_items
+```
+
+and then calculating:
+
+```sql
+SUM(orders.total)
+```
+
+If every order has multiple order items, the order total may appear multiple times.
+
+This can inflate revenue.
+
+The lesson:
+
+> **Always understand row multiplication before aggregating.**
+
+---
+
+# 3.6 Join Debugging
+
+When an aggregate looks suspicious:
+
+1. Remove the aggregate.
+2. Select the IDs.
+3. Inspect row duplication.
+4. Determine the result grain.
+5. Fix the relationship.
+6. Add aggregation again.
+
+This is a powerful debugging technique.
+
+---
+
+# CHAPTER 04 — SUBQUERIES DEEP DIVE
+
+Subqueries allow one query to use the result of another.
+
+---
+
+# 4.1 Scalar Subquery
+
+Find products above average price:
+
+```sql
+SELECT
+    id,
+    name,
+    price
+FROM products
+WHERE price > (
+    SELECT AVG(price)
+    FROM products
+);
+```
+
+The inner query produces one value.
+
+---
+
+# 4.2 IN
+
+Find customers who placed an order:
+
+```sql
+SELECT *
+FROM customers
+WHERE id IN (
+    SELECT customer_id
+    FROM orders
+);
+```
+
+---
+
+# 4.3 EXISTS
+
+Often we care only whether a matching row exists:
+
+```sql
+SELECT *
+FROM customers c
+WHERE EXISTS (
+    SELECT 1
+    FROM orders o
+    WHERE o.customer_id = c.id
+);
+```
+
+Conceptually:
+
+> Does this customer have at least one matching order?
+
+---
+
+# 4.4 NOT EXISTS
+
+Find customers without orders:
+
+```sql
+SELECT *
+FROM customers c
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM orders o
+    WHERE o.customer_id = c.id
+);
+```
+
+This is an important real-world pattern.
+
+---
+
+# 4.5 Correlated Subquery
+
+The inner query references the outer query.
+
+```sql
+SELECT
+    c.id,
+    c.name
+FROM customers c
+WHERE EXISTS (
+    SELECT 1
+    FROM orders o
+    WHERE o.customer_id = c.id
+);
+```
+
+The inner query depends on each outer customer.
+
+---
+
+# 4.6 Subquery vs JOIN
+
+Many problems can be solved using either.
+
+The question is not:
+
+> "Which syntax is cooler?"
+
+Ask:
+
+> Which form expresses the intended logic clearly and performs appropriately?
+
+We will compare plans in later chapters.
+
+---
+
+# CHAPTER 05 — COMMON TABLE EXPRESSIONS
+
+CTEs use:
+
+```sql
+WITH
+```
+
+to create named intermediate query results.
+
+---
+
+# 5.1 Basic CTE
+
+```sql
+WITH completed_orders AS (
+    SELECT *
+    FROM orders
+    WHERE status = 'completed'
+)
+SELECT *
+FROM completed_orders;
+```
+
+This improves readability.
+
+---
+
+# 5.2 Multi-Step Query
+
+```sql
+WITH completed_orders AS (
+    SELECT *
+    FROM orders
+    WHERE status = 'completed'
+),
+customer_totals AS (
+    SELECT
+        customer_id,
+        SUM(amount) AS total_spent
+    FROM completed_orders
+    GROUP BY customer_id
+)
+SELECT *
+FROM customer_totals
+ORDER BY total_spent DESC;
+```
+
+Now the query reads almost like the reasoning process:
+
+```text
+completed orders
+        ↓
+customer totals
+        ↓
+ranking
+```
+
+---
+
+# 5.3 Why CTEs Matter
+
+They help with:
+
+* readability
+* decomposition
+* debugging
+* multi-stage transformations
+
+But don't assume:
+
+> CTE = automatically faster.
+
+CTEs are primarily a query organization tool.
+
+Performance depends on PostgreSQL's execution strategy and query structure.
+
+---
+
+# 5.4 CTE as a Debugging Tool
+
+Develop the query incrementally:
+
+```text
+Step 1 → completed_orders
+Step 2 → customer_totals
+Step 3 → ranked_customers
+```
+
+Test each intermediate result.
+
+This is excellent deliberate practice.
+
+---
+
+# CHAPTER 06 — RECURSIVE QUERIES
+
+Recursive CTEs solve hierarchical problems.
+
+---
+
+# 6.1 Example
+
+Imagine:
+
+```text
+CEO
+ ├── Manager A
+ │    ├── Employee 1
+ │    └── Employee 2
+ └── Manager B
+      └── Employee 3
+```
+
+Data:
+
+```text
+employees
+----------------
+id
+name
+manager_id
+```
+
+The relationship forms a tree.
+
+---
+
+# 6.2 Recursive Structure
+
+Conceptually:
+
+```sql
+WITH RECURSIVE employee_tree AS (
+    -- base case
+    SELECT
+        id,
+        name,
+        manager_id
+    FROM employees
+    WHERE manager_id IS NULL
+
+    UNION ALL
+
+    -- recursive case
+    SELECT
+        e.id,
+        e.name,
+        e.manager_id
+    FROM employees e
+    JOIN employee_tree t
+        ON e.manager_id = t.id
+)
+SELECT *
+FROM employee_tree;
+```
+
+---
+
+# 6.3 Important Concept
+
+Recursion has:
+
+```text
+Base case
++
+Recursive step
+```
+
+Without a terminating condition or finite data structure, recursion can become problematic.
+
+---
+
+# 6.4 When to Use
+
+Useful for:
+
+* organizational hierarchies
+* category trees
+* folder structures
+* dependency graphs
+* hierarchical relationships
+
+Do not use recursion merely because SQL supports it.
+
+---
+
+# CHAPTER 07 — SET OPERATIONS
+
+SQL allows combining result sets.
+
+---
+
+# 7.1 UNION
+
+```sql
+SELECT email FROM customers
+UNION
+SELECT email FROM suppliers;
+```
+
+Removes duplicates.
+
+---
+
+# 7.2 UNION ALL
+
+```sql
+SELECT email FROM customers
+UNION ALL
+SELECT email FROM suppliers;
+```
+
+Keeps duplicates.
+
+`UNION ALL` is often preferable when deduplication is not required because it avoids unnecessary duplicate elimination.
+
+---
+
+# 7.3 INTERSECT
+
+Returns rows appearing in both results.
+
+```sql
+SELECT email FROM customers
+INTERSECT
+SELECT email FROM newsletter_subscribers;
+```
+
+---
+
+# 7.4 EXCEPT
+
+Returns rows from the first result that aren't in the second.
+
+```sql
+SELECT email FROM customers
+EXCEPT
+SELECT email FROM blocked_users;
+```
+
+---
+
+# 7.5 Why Set Operations Matter
+
+They are useful for:
+
+* comparisons
+* reconciliation
+* reporting
+* data validation
+
+---
+
+# CHAPTER 08 — CONDITIONAL LOGIC & DATA TRANSFORMATION
+
+SQL can transform data as part of queries.
+
+---
+
+# 8.1 CASE
+
+```sql
+SELECT
+    name,
+    price,
+    CASE
+        WHEN price < 1000 THEN 'Budget'
+        WHEN price < 5000 THEN 'Mid-range'
+        ELSE 'Premium'
+    END AS price_category
+FROM products;
+```
+
+---
+
+# 8.2 Conditional Aggregation
+
+Very useful.
+
+```sql
+SELECT
+    COUNT(*) AS total_orders,
+    COUNT(*) FILTER (WHERE status = 'completed') AS completed_orders,
+    COUNT(*) FILTER (WHERE status = 'cancelled') AS cancelled_orders
+FROM orders;
+```
+
+PostgreSQL's `FILTER` syntax is useful for analytical queries.
+
+Equivalent logic can also be written using `CASE`.
+
+---
+
+# 8.3 Conditional SUM
+
+```sql
+SELECT
+    SUM(
+        CASE
+            WHEN status = 'completed'
+            THEN amount
+            ELSE 0
+        END
+    ) AS completed_revenue
+FROM orders;
+```
+
+---
+
+# 8.4 Data Transformation Principle
+
+SQL isn't only retrieving data.
+
+It can:
+
+```text
+Filter
+Transform
+Aggregate
+Rank
+Compare
+Classify
+Combine
+```
+
+This is why SQL is powerful for data engineering.
+
+---
+
+# CHAPTER 09 — ADVANCED AGGREGATION
+
+Aggregation becomes much more interesting when answering real business questions.
+
+---
+
+# 9.1 Multiple Dimensions
+
+Suppose:
+
+```text
+orders
+customer_id
+product_id
+amount
+created_at
+```
+
+You might ask:
+
+> Revenue by month and category.
+
+This requires multiple grouping dimensions.
+
+---
+
+# 9.2 GROUP BY Multiple Columns
+
+```sql
+SELECT
+    category_id,
+    DATE_TRUNC('month', created_at) AS month,
+    SUM(amount) AS revenue
+FROM orders
+GROUP BY
+    category_id,
+    DATE_TRUNC('month', created_at);
+```
+
+---
+
+# 9.3 COUNT DISTINCT
+
+```sql
+SELECT COUNT(DISTINCT customer_id)
+FROM orders;
+```
+
+This answers:
+
+> How many unique customers placed orders?
+
+---
+
+# 9.4 Aggregation Grain
+
+Always know what one row means.
+
+For:
+
+```sql
+GROUP BY customer_id
+```
+
+one output row represents:
+
+```text
+one customer
+```
+
+For:
+
+```sql
+GROUP BY customer_id, month
+```
+
+one output row represents:
+
+```text
+one customer-month
+```
+
+This mental model prevents many bugs.
+
+---
+
+# 9.5 FILTER
+
+PostgreSQL:
+
+```sql
+SELECT
+    COUNT(*) AS total,
+    COUNT(*) FILTER (
+        WHERE status = 'completed'
+    ) AS completed
+FROM orders;
+```
+
+This is often cleaner than multiple subqueries.
+
+---
+
+# CHAPTER 10 — WINDOW FUNCTIONS
+
+Window functions are one of the most important advanced SQL concepts.
+
+They allow calculations across related rows **without collapsing those rows into one row per group**.
+
+---
+
+# 10.1 GROUP BY vs Window Function
+
+`GROUP BY`:
+
+```text
+many rows
+   ↓
+one row per group
+```
+
+Window function:
+
+```text
+many rows
+   ↓
+same rows + calculated information
+```
+
+This distinction is critical.
+
+---
+
+# 10.2 ROW_NUMBER
+
+```sql
+SELECT
+    customer_id,
+    order_id,
+    amount,
+    ROW_NUMBER() OVER (
+        PARTITION BY customer_id
+        ORDER BY amount DESC
+    ) AS order_rank
+FROM orders;
+```
+
+Meaning:
+
+> Rank each customer's orders from highest amount to lowest.
+
+---
+
+# 10.3 PARTITION BY
+
+```text
+PARTITION BY customer_id
+```
+
+means:
+
+> Perform the window calculation independently for each customer.
+
+---
+
+# 10.4 RANK
+
+```sql
+RANK() OVER (
+    ORDER BY amount DESC
+)
+```
+
+Ties receive the same rank, with gaps afterward.
+
+---
+
+# 10.5 DENSE_RANK
+
+```sql
+DENSE_RANK() OVER (
+    ORDER BY amount DESC
+)
+```
+
+Ties receive the same rank without gaps.
+
+---
+
+# CHAPTER 11 — RANKING, RUNNING TOTALS & ANALYTICS
+
+Window functions become extremely powerful for analytics.
+
+---
+
+# 11.1 Top Order Per Customer
+
+```sql
+WITH ranked_orders AS (
+    SELECT
+        customer_id,
+        order_id,
+        amount,
+        ROW_NUMBER() OVER (
+            PARTITION BY customer_id
+            ORDER BY amount DESC
+        ) AS rn
+    FROM orders
+)
+SELECT *
+FROM ranked_orders
+WHERE rn = 1;
+```
+
+---
+
+# 11.2 Running Total
+
+```sql
+SELECT
+    created_at,
+    amount,
+    SUM(amount) OVER (
+        ORDER BY created_at
+    ) AS running_total
+FROM orders;
+```
+
+---
+
+# 11.3 Previous Row
+
+`LAG` lets us compare with the previous row.
+
+```sql
+SELECT
+    created_at,
+    amount,
+    LAG(amount) OVER (
+        ORDER BY created_at
+    ) AS previous_amount
+FROM orders;
+```
+
+---
+
+# 11.4 Next Row
+
+```sql
+LEAD(amount) OVER (
+    ORDER BY created_at
+)
+```
+
+Useful for:
+
+* trend analysis
+* event sequences
+* time-series comparisons
+
+---
+
+# 11.5 FIRST_VALUE / LAST_VALUE
+
+These can identify values relative to a window.
+
+They are useful but require careful understanding of the window frame.
+
+We will practice them rather than memorize them.
+
+---
+
+# 11.6 Window Function Mental Model
+
+```text
+Rows
+ ↓
+Partition
+ ↓
+Order
+ ↓
+Window frame
+ ↓
+Calculation
+ ↓
+Original rows + calculated result
+```
+
+---
+
+# CHAPTER 12 — NULL, THREE-VALUED LOGIC & EDGE CASES
+
+Complex SQL often fails at the edges.
+
+---
+
+# 12.1 NULL Comparisons
+
+Wrong:
+
+```sql
+WHERE phone = NULL
+```
+
+Correct:
+
+```sql
+WHERE phone IS NULL
+```
+
+---
+
+# 12.2 NULL in Aggregates
+
+For example:
+
+```sql
+AVG(price)
+```
+
+typically ignores NULL values.
+
+This matters when interpreting results.
+
+---
+
+# 12.3 COUNT Differences
+
+```sql
+COUNT(*)
+```
+
+counts rows.
+
+```sql
+COUNT(phone)
+```
+
+counts non-NULL phone values.
+
+These are not equivalent.
+
+---
+
+# 12.4 NULL in Arithmetic
+
+Suppose:
+
+```text
+price = NULL
+```
+
+Then:
+
+```sql
+price * 2
+```
+
+will produce NULL.
+
+Use:
+
+```sql
+COALESCE(price, 0)
+```
+
+when that behavior is actually intended.
+
+---
+
+# 12.5 Edge Case Thinking
+
+For every query ask:
+
+```text
+What if there are no rows?
+
+What if there are NULLs?
+
+What if there are duplicates?
+
+What if there are ties?
+
+What if a relationship is missing?
+
+What if a value is zero?
+
+What if two timestamps are identical?
+```
+
+This is query engineering.
+
+---
+
+# CHAPTER 13 — DATE & TIME QUERY ENGINEERING
+
+Dates are a major source of bugs.
+
+---
+
+# 13.1 Filter by Range
+
+Prefer carefully defined ranges.
+
+For example:
+
+```sql
+WHERE created_at >= '2026-01-01'
+  AND created_at < '2026-02-01'
+```
+
+This defines a half-open interval:
+
+```text
+[2026-01-01, 2026-02-01)
+```
+
+This is often safer than trying to construct the final second of a month.
+
+---
+
+# 13.2 DATE_TRUNC
+
+```sql
+SELECT
+    DATE_TRUNC('month', created_at) AS month,
+    SUM(amount)
+FROM orders
+GROUP BY DATE_TRUNC('month', created_at);
+```
+
+Useful for monthly reporting.
+
+---
+
+# 13.3 Intervals
+
+PostgreSQL supports interval arithmetic.
+
+Conceptually:
+
+```sql
+created_at + INTERVAL '7 days'
+```
+
+---
+
+# 13.4 Time Zones
+
+A timestamp represents an actual point in time differently from a local wall-clock representation.
+
+Production systems must have a deliberate strategy for:
+
+* storage
+* application conversion
+* display
+
+Don't treat timezone handling as formatting only.
+
+---
+
+# CHAPTER 14 — TEXT SEARCH & STRING QUERY PATTERNS
+
+---
+
+# 14.1 LIKE
+
+```sql
+SELECT *
+FROM users
+WHERE name LIKE 'Sri%';
+```
+
+---
+
+# 14.2 ILIKE
+
+PostgreSQL:
+
+```sql
+SELECT *
+FROM users
+WHERE name ILIKE '%sri%';
+```
+
+Useful for case-insensitive matching.
+
+---
+
+# 14.3 Pattern Matching and Performance
+
+A query such as:
+
+```sql
+WHERE name ILIKE '%abc%'
+```
+
+may not use a normal B-tree index efficiently.
+
+This becomes a performance consideration.
+
+Later, PostgreSQL offers specialized indexing/search mechanisms.
+
+We will not dive into every text-search extension yet.
+
+---
+
+# 14.4 Full-Text Search
+
+PostgreSQL supports full-text search.
+
+Conceptually:
+
+```text
+documents
+    ↓
+tokenization
+    ↓
+search representation
+    ↓
+matching
+```
+
+This becomes particularly interesting when connected to AI/RAG later.
+
+---
+
+# CHAPTER 15 — PAGINATION & RESULT NAVIGATION
+
+Applications rarely return millions of rows.
+
+They paginate.
+
+---
+
+# 15.1 OFFSET Pagination
+
+```sql
+SELECT *
+FROM products
+ORDER BY id
+LIMIT 20
+OFFSET 40;
+```
+
+Simple.
+
+But large offsets can become inefficient because the database may still need to process/skip many rows.
+
+---
+
+# 15.2 Keyset Pagination
+
+Instead of:
+
+```text
+page = 10000
+```
+
+use a known last key:
+
+```sql
+SELECT *
+FROM products
+WHERE id > 2000
+ORDER BY id
+LIMIT 20;
+```
+
+This is often called:
+
+> Keyset pagination
+
+or:
+
+> Cursor pagination
+
+---
+
+# 15.3 Why This Matters
+
+This becomes important for:
+
+* APIs
+* large datasets
+* infinite scrolling
+* high-volume applications
+
+---
+
+# 15.4 Pagination Requirements
+
+A good pagination design needs:
+
+```text
+Stable ordering
++
+Cursor/key
++
+Limit
+```
+
+Avoid ambiguous ordering.
+
+If two rows have the same sort value, add a deterministic tie-breaker such as an ID.
+
+---
+
+# CHAPTER 16 — QUERY COMPOSITION & READABILITY
+
+A query is code.
+
+Treat it like code.
+
+---
+
+# 16.1 Bad Query
+
+A giant unreadable query:
+
+```text
+SELECT ... 300 characters of nested logic ...
+```
+
+may technically work but be difficult to maintain.
+
+---
+
+# 16.2 Good Query
+
+Use:
+
+* meaningful aliases
+* indentation
+* CTEs where helpful
+* explicit columns
+* clear conditions
+
+Example:
+
+```sql
+WITH completed_orders AS (
+    SELECT
+        customer_id,
+        amount
+    FROM orders
+    WHERE status = 'completed'
+)
+SELECT
+    customer_id,
+    SUM(amount) AS total_spent
+FROM completed_orders
+GROUP BY customer_id
+ORDER BY total_spent DESC;
+```
+
+---
+
+# 16.3 Naming
+
+Avoid:
+
+```sql
+SELECT a.x, b.y
+FROM customers a
+JOIN orders b ...
+```
+
+when meaningful aliases are clearer:
+
+```sql
+SELECT
+    customer.id,
+    order.id
+FROM customers AS customer
+JOIN orders AS order
+    ON order.customer_id = customer.id;
+```
+
+Short aliases are fine when they remain understandable:
+
+```text
+c
+o
+oi
+p
+```
+
+---
+
+# 16.4 Comments
+
+Comment the **why**, not every obvious line.
+
+Bad:
+
+```sql
+-- select customer id
+SELECT customer_id
+```
+
+Better:
+
+```sql
+-- Restrict to completed orders because cancelled orders
+-- should not contribute to recognized revenue.
+```
+
+---
+
+# CHAPTER 17 — COMMON SQL ANTI-PATTERNS
+
+---
+
+# Anti-Pattern 1 — SELECT *
+
+Avoid blindly returning every column.
+
+---
+
+# Anti-Pattern 2 — Missing WHERE
+
+Dangerous:
+
+```sql
+UPDATE users
+SET status = 'inactive';
+```
+
+if you intended to update one user.
+
+---
+
+# Anti-Pattern 3 — Incorrect JOIN
+
+Joining on the wrong column can silently produce incorrect data.
+
+---
+
+# Anti-Pattern 4 — Accidental Cartesian Product
+
+Forgetting a join condition can create enormous row combinations.
+
+---
+
+# Anti-Pattern 5 — Aggregating After Row Multiplication
+
+This can inflate counts and sums.
+
+---
+
+# Anti-Pattern 6 — OFFSET at Huge Scale
+
+Simple but potentially inefficient.
+
+---
+
+# Anti-Pattern 7 — Functions Preventing Efficient Filtering
+
+For example:
+
+```sql
+WHERE LOWER(email) = 'user@example.com'
+```
+
+may interact differently with indexes than a properly designed normalized/search strategy.
+
+Don't optimize blindly; inspect the plan.
+
+---
+
+# Anti-Pattern 8 — N+1 Queries
+
+Application does:
+
+```text
+1 query → get customers
+100 queries → get each customer's orders
+```
+
+Total:
+
+```text
+101 queries
+```
+
+Sometimes a properly designed join or batch query can solve this more efficiently.
+
+---
+
+# Anti-Pattern 9 — Using SQL to Hide Bad Schema Design
+
+Sometimes the query is impossibly complicated because the underlying data model is poor.
+
+The correct solution may be schema redesign.
+
+---
+
+# CHAPTER 18 — QUERY CORRECTNESS & TESTING
+
+A query should be tested like application code.
+
+---
+
+# 18.1 Test Expected Results
+
+Suppose:
+
+```text
+Expected:
+5 customers
+```
+
+Verify the result.
+
+---
+
+# 18.2 Edge Cases
+
+Test:
+
+* zero rows
+* one row
+* duplicate values
+* NULL
+* ties
+* missing relationships
+* large values
+* negative values where relevant
+
+---
+
+# 18.3 Invariants
+
+An invariant is a condition that should remain true.
+
+Example:
+
+```text
+order total = sum(order items)
+```
+
+Another:
+
+```text
+stock >= 0
+```
+
+Use these to validate queries and database behavior.
+
+---
+
+# 18.4 Query Regression Tests
+
+If an important query changes:
+
+```text
+Old query
+ ↓
+expected result
+```
+
+Compare against:
+
+```text
+New query
+ ↓
+expected result
+```
+
+This becomes important in production systems.
+
+---
+
+# CHAPTER 19 — EXPLAIN & QUERY PLANS
+
+Now we start understanding what PostgreSQL does with a query.
+
+---
+
+# 19.1 EXPLAIN
+
+Example:
+
+```sql
+EXPLAIN
+SELECT *
+FROM products
+WHERE price > 1000;
+```
+
+PostgreSQL returns a query plan.
+
+---
+
+# 19.2 EXPLAIN ANALYZE
+
+```sql
+EXPLAIN ANALYZE
+SELECT *
+FROM products
+WHERE price > 1000;
+```
+
+This actually executes the query and reports runtime information.
+
+Be careful when using it with:
+
+```text
+INSERT
+UPDATE
+DELETE
+```
+
+because those operations actually execute.
+
+---
+
+# 19.3 What Is a Query Plan?
+
+The planner decides how to execute the query.
+
+Conceptually:
+
+```text
+SQL
+ ↓
+Parser
+ ↓
+Planner / Optimizer
+ ↓
+Execution Plan
+ ↓
+Executor
+ ↓
+Result
+```
+
+---
+
+# 19.4 Scan
+
+You may encounter:
+
+```text
+Sequential Scan
+Index Scan
+Index Only Scan
+Bitmap Scan
+```
+
+We don't need to memorize every detail yet.
+
+Understand the basic idea:
+
+> PostgreSQL chooses a way to find the required rows.
+
+---
+
+# 19.5 Cost
+
+EXPLAIN includes estimated costs.
+
+These are planner estimates, not directly measured milliseconds.
+
+Don't interpret:
+
+```text
+cost=100
+```
+
+as:
+
+```text
+100 milliseconds
+```
+
+---
+
+# 19.6 Actual Time
+
+With:
+
+```sql
+EXPLAIN ANALYZE
+```
+
+you can see actual execution timing.
+
+Compare:
+
+```text
+estimated rows
+vs
+actual rows
+```
+
+This becomes important for diagnosing poor plans.
+
+---
+
+# CHAPTER 20 — QUERY PERFORMANCE FUNDAMENTALS
+
+Performance isn't just:
+
+> "Make SQL faster."
+
+It is:
+
+```text
+Reduce unnecessary work
+```
+
+---
+
+# 20.1 Ask Where the Work Happens
+
+Possible problems:
+
+```text
+Too many rows scanned
+Too many joins
+Poor filtering
+Bad indexes
+Large sorts
+Large aggregations
+Network transfer
+Application-side processing
+```
+
+---
+
+# 20.2 Measure Before Optimizing
+
+Never say:
+
+> "This query is slow because it doesn't use an index."
+
+without measuring.
+
+Use:
+
+```text
+EXPLAIN
+EXPLAIN ANALYZE
+```
+
+and actual workload information.
+
+---
+
+# 20.3 Select Only What You Need
+
+Instead of:
+
+```sql
+SELECT *
+```
+
+use:
+
+```sql
+SELECT id, name, price
+```
+
+when those are the only required fields.
+
+Benefits can include:
+
+* less data transfer
+* less memory
+* clearer API boundaries
+
+---
+
+# 20.4 Filter Early
+
+When logically appropriate, reduce the dataset before expensive operations.
+
+---
+
+# 20.5 Avoid Unnecessary Work
+
+For example, don't calculate:
+
+```text
+10 million rows
+```
+
+when the application needs:
+
+```text
+10 rows
+```
+
+---
+
+# CHAPTER 21 — INDEX-AWARE QUERY ENGINEERING
+
+V01 introduced indexes.
+
+V02 used them conceptually.
+
+Now we connect indexes with query patterns.
+
+---
+
+# 21.1 Index Exists for Access Patterns
+
+Suppose:
+
+```sql
+SELECT *
+FROM users
+WHERE email = 'user@example.com';
+```
+
+If email is frequently searched, an index may help.
+
+---
+
+# 21.2 Composite Index
+
+Suppose queries often use:
+
+```text
+customer_id
+created_at
+```
+
+A composite index can sometimes support such access patterns.
+
+The order of columns matters.
+
+---
+
+# 21.3 Don't Guess
+
+Don't automatically create:
+
+```text
+index on every column
+```
+
+Instead:
+
+```text
+Observe query pattern
+       ↓
+Measure
+       ↓
+Design index
+       ↓
+EXPLAIN
+       ↓
+Verify
+```
+
+---
+
+# 21.4 Selectivity
+
+Indexes are generally more useful when they can significantly narrow the candidate rows.
+
+A column where almost every row has the same value may not be as useful for certain queries.
+
+Again:
+
+> Let actual workload and query plans guide decisions.
+
+---
+
+# 21.5 Write Cost
+
+Indexes must also be maintained when data changes.
+
+Therefore:
+
+```text
+More indexes
+    ↓
+Potentially faster reads
+    +
+Potentially more write/storage overhead
+```
+
+This is an engineering tradeoff.
+
+---
+
+# CHAPTER 22 — QUERY OPTIMIZATION WORKFLOW
+
+Use a disciplined process.
+
+---
+
+# Step 1 — Establish Correctness
+
+Verify that the query returns the right answer.
+
+---
+
+# Step 2 — Establish a Baseline
+
+Measure:
+
+```text
+Execution time
+Rows processed
+Plan
+```
+
+---
+
+# Step 3 — Inspect EXPLAIN
+
+Look for:
+
+* sequential scans
+* unexpected row counts
+* expensive joins
+* large sorts
+* repeated work
+
+---
+
+# Step 4 — Identify the Bottleneck
+
+Don't change five things at once.
+
+---
+
+# Step 5 — Make One Change
+
+Examples:
+
+* rewrite query
+* add/remove index
+* change join strategy
+* reduce columns
+* change pagination
+* improve filtering
+
+---
+
+# Step 6 — Measure Again
+
+Compare:
+
+```text
+Before
+vs
+After
+```
+
+---
+
+# Step 7 — Verify Correctness Again
+
+Optimization must not change the answer.
+
+---
+
+# Step 8 — Document
+
+Record:
+
+```text
+Problem
+Evidence
+Change
+Result
+Trade-off
+```
+
+This is exactly the engineering style used throughout our DevOps roadmap.
+
+---
+
+# CHAPTER 23 — REAL-WORLD QUERY DEBUGGING
+
+This chapter is deliberately practical.
+
+---
+
+# Scenario 1 — Revenue Too High
+
+Expected:
+
+```text
+₹100,000
+```
+
+Query returns:
+
+```text
+₹350,000
+```
+
+Investigation:
+
+```text
+Remove SUM
+ ↓
+Inspect rows
+ ↓
+Identify duplicate orders
+ ↓
+Find join multiplication
+ ↓
+Correct query
+```
+
+---
+
+# Scenario 2 — Customers Missing
+
+Query should return:
+
+```text
+100 customers
+```
+
+but returns:
+
+```text
+73
+```
+
+Investigate:
+
+* INNER JOIN?
+* Missing relationships?
+* WHERE condition?
+* NULL?
+* Incorrect filter?
+
+---
+
+# Scenario 3 — Query Suddenly Slow
+
+Workflow:
+
+```text
+Was query always slow?
+        ↓
+What changed?
+        ↓
+Dataset size?
+        ↓
+Statistics?
+        ↓
+Indexes?
+        ↓
+Execution plan?
+        ↓
+Actual rows vs estimated rows?
+```
+
+Do not immediately rewrite the query.
+
+---
+
+# Scenario 4 — Pagination Skips Records
+
+Investigate:
+
+```text
+ORDER BY
+```
+
+Is ordering deterministic?
+
+If multiple rows have identical sort values, add a stable tie-breaker.
+
+---
+
+# Scenario 5 — Duplicate API Results
+
+Trace:
+
+```text
+API
+ ↓
+SQL
+ ↓
+JOIN
+ ↓
+result grain
+```
+
+Determine whether the database query itself returns duplicates or the application is duplicating them.
+
+---
+
+# CHAPTER 24 — SQL SECURITY & SAFE QUERY CONSTRUCTION
+
+SQL injection remains one of the most important database security concepts.
+
+---
+
+# 24.1 Unsafe
+
+Never construct SQL like:
+
+```text
+"SELECT * FROM users WHERE email = '" + email + "'"
+```
+
+User input can alter the query.
+
+---
+
+# 24.2 Parameterized
+
+Conceptually:
+
+```text
+SQL:
+SELECT *
+FROM users
+WHERE email = $1
+
+Parameter:
+user@example.com
+```
+
+The database/driver treats the value as data rather than executable SQL syntax.
+
+---
+
+# 24.3 ORM Safety
+
+ORMs often provide parameterization automatically.
+
+But developers can still create unsafe raw SQL.
+
+Therefore:
+
+> ORM does not eliminate security responsibility.
+
+---
+
+# 24.4 Least Privilege
+
+The application database user should not have unnecessary permissions.
+
+This reduces the potential damage if credentials are compromised.
+
+---
+
+# 24.5 Sensitive Data
+
+Avoid returning unnecessary sensitive columns from queries.
+
+Example:
+
+```text
+SELECT *
+```
+
+could accidentally expose:
+
+* password hashes
+* internal tokens
+* private metadata
+* administrative information
+
+Explicit column selection is often safer.
+
+---
+
+# CHAPTER 25 — MINI-PROJECT
+
+# Project: Business Analytics Query Engine
+
+This is the main V03 project.
+
+We will reuse the **e-commerce PostgreSQL database from V02**.
+
+This is intentional.
+
+We are not creating another pointless database.
+
+V02 built the data layer.
+
+V03 now becomes the analytics/query engineering layer.
+
+---
+
+# Project Goal
+
+Build a collection of production-style SQL queries answering realistic business questions.
+
+---
+
+# Phase 1 — Dataset Preparation
+
+Use the V02 e-commerce database.
+
+Ensure it contains enough realistic data to produce meaningful results.
+
+You should have:
+
+```text
+Customers
+Categories
+Products
+Orders
+Order Items
+Payments
+```
+
+Ideally generate several hundred/thousand records for performance experiments.
+
+Do not use massive datasets unnecessarily.
+
+---
+
+# Phase 2 — Basic Business Queries
+
+Create queries for:
+
+1. Total customers.
+2. Total orders.
+3. Total revenue.
+4. Average order value.
+5. Orders by status.
+6. Revenue by month.
+7. Revenue by category.
+8. Top products.
+9. Top customers.
+10. Customers with no orders.
+
+---
+
+# Phase 3 — Advanced Joins
+
+Build queries for:
+
+### Top customers
+
+```text
+customer
+→ orders
+→ total spending
+```
+
+### Top products
+
+```text
+product
+→ order items
+→ quantity sold
+→ revenue
+```
+
+### Category performance
+
+```text
+category
+→ products
+→ order items
+→ revenue
+```
+
+---
+
+# Phase 4 — Subqueries
+
+Solve:
+
+1. Products above average price.
+2. Customers above average spending.
+3. Customers with at least one order.
+4. Customers with no orders.
+5. Products never ordered.
+6. Orders larger than the average order.
+7. Customers whose latest order exceeds a threshold.
+
+---
+
+# Phase 5 — CTEs
+
+Build multi-step analytics:
+
+```text
+Completed Orders
+      ↓
+Customer Revenue
+      ↓
+Customer Ranking
+      ↓
+Top Customers
+```
+
+Another:
+
+```text
+Order Items
+      ↓
+Product Revenue
+      ↓
+Category Revenue
+      ↓
+Category Ranking
+```
+
+---
+
+# Phase 6 — Window Functions
+
+Implement:
+
+1. Rank customers by revenue.
+2. Rank products within each category.
+3. Find each customer's largest order.
+4. Running monthly revenue.
+5. Previous month's revenue.
+6. Revenue growth.
+7. Top 3 products per category.
+
+---
+
+# Phase 7 — Real Business Questions
+
+Answer:
+
+### Customer Analytics
+
+* Who are the top 10 customers?
+* Which customers have never ordered?
+* Which customers increased spending?
+* What is the average order value per customer?
+
+### Product Analytics
+
+* Which products sell the most?
+* Which products generate the most revenue?
+* Which products are never ordered?
+* Which products perform best within each category?
+
+### Sales Analytics
+
+* What is monthly revenue?
+* What is the running yearly revenue?
+* Which month had the highest revenue?
+* How does this month compare to the previous month?
+
+### Inventory Analytics
+
+* Which products are low stock?
+* Which products sell quickly?
+* Which products have high stock but low sales?
+
+---
+
+# Phase 8 — Query Correctness Tests
+
+For every major query document:
+
+```text
+Question:
+Expected result grain:
+Tables used:
+Join relationships:
+Filters:
+Aggregation:
+Edge cases:
+```
+
+Then test:
+
+```text
+NULL
+duplicates
+no results
+ties
+missing relationships
+```
+
+---
+
+# Phase 9 — Performance Lab
+
+Take several queries.
+
+For each:
+
+```text
+1. Run query
+2. EXPLAIN
+3. EXPLAIN ANALYZE
+4. Record plan
+5. Identify bottleneck
+6. Create/modify index if justified
+7. Run again
+8. Compare
+```
+
+---
+
+# Phase 10 — Failure Injection
+
+Deliberately create:
+
+### Failure 1
+
+An inefficient query.
+
+### Failure 2
+
+An incorrect join.
+
+### Failure 3
+
+A missing filter.
+
+### Failure 4
+
+An aggregation bug caused by row multiplication.
+
+### Failure 5
+
+An unstable pagination query.
+
+### Failure 6
+
+A query with an unnecessary subquery.
+
+Then diagnose each.
+
+---
+
+# Phase 11 — Query Engineering Report
+
+Create:
+
+```text
+docs/query-engineering-report.md
+```
+
+For at least five queries document:
+
+```text
+Business problem
+Initial query
+Expected result
+Execution plan
+Observed problem
+Optimization
+Before performance
+After performance
+Correctness verification
+Trade-offs
+```
+
+This is more valuable than simply collecting SQL snippets.
+
+---
+
+# PROJECT STRUCTURE
+
+Reuse the V02 repository:
+
+```text
+postgres-ecommerce-lab/
+│
+├── README.md
+│
+├── docs/
+│   ├── architecture.md
+│   ├── schema.md
+│   ├── backup-restore.md
+│   └── query-engineering-report.md
+│
+├── schema/
+│   └── schema.sql
+│
+├── seed/
+│   └── seed.sql
+│
+├── queries/
+│   ├── basic/
+│   ├── joins/
+│   ├── subqueries/
+│   ├── ctes/
+│   ├── windows/
+│   └── analytics/
+│
+└── performance/
+    ├── before/
+    └── after/
+```
+
+The project is now evolving:
+
+```text
+V02
+Database foundation
+        ↓
+V03
+Query engineering
+```
+
+This is the beginning of the **continuous-project philosophy** we'll use later with the flagship.
+
+---
+
+# CHAPTER 26 — QUERY CHALLENGE SET
+
+These should be solved without looking at solutions.
+
+---
+
+## Challenge 01
+
+Find the second-highest product price.
+
+Then solve it using:
+
+* subquery
+* `DENSE_RANK`
+
+Compare the approaches.
+
+---
+
+## Challenge 02
+
+Find the highest-priced product in each category.
+
+---
+
+## Challenge 03
+
+Find the top three products in each category by revenue.
+
+---
+
+## Challenge 04
+
+Find customers whose spending is above the average customer spending.
+
+---
+
+## Challenge 05
+
+Find customers who placed orders in at least three different months.
+
+---
+
+## Challenge 06
+
+Find products that have never been ordered.
+
+---
+
+## Challenge 07
+
+Find each customer's first order.
+
+---
+
+## Challenge 08
+
+Find each customer's most recent order.
+
+---
+
+## Challenge 09
+
+Calculate a running monthly revenue total.
+
+---
+
+## Challenge 10
+
+Calculate month-over-month revenue change.
+
+---
+
+## Challenge 11
+
+Find the percentage of total revenue contributed by each category.
+
+---
+
+## Challenge 12
+
+Find customers whose latest order is larger than their average order.
+
+---
+
+## Challenge 13
+
+Find the top customer in every month.
+
+---
+
+## Challenge 14
+
+Find consecutive order activity for customers.
+
+Use window functions such as:
+
+```text
+LAG
+```
+
+to reason about previous activity.
+
+---
+
+## Challenge 15
+
+Find products that have high revenue but low sales quantity.
+
+This requires defining what:
+
+```text
+high
+low
+```
+
+mean instead of blindly writing SQL.
+
+This is deliberate engineering thinking.
+
+---
+
+# CHAPTER 27 — FINAL REVIEW & ENGINEERING ASSESSMENT
+
+At the end of V03, you should be able to reason about:
+
+## Query Design
+
+* Result grain
+* Required tables
+* Relationships
+* Filters
+* Aggregations
+* Intermediate results
+* Edge cases
+
+---
+
+## JOINs
+
+Understand:
+
+* INNER JOIN
+* LEFT JOIN
+* RIGHT JOIN
+* FULL OUTER JOIN
+* CROSS JOIN
+
+More importantly:
+
+> Understand why a join changes the number of rows.
+
+---
+
+## Subqueries
+
+Understand:
+
+* scalar subqueries
+* `IN`
+* `EXISTS`
+* `NOT EXISTS`
+* correlated subqueries
+
+---
+
+## CTEs
+
+Be able to decompose complex queries into logical stages.
+
+---
+
+## Recursive Queries
+
+Understand:
+
+* base case
+* recursive step
+* hierarchical data
+
+---
+
+## Set Operations
+
+Understand:
+
+```text
+UNION
+UNION ALL
+INTERSECT
+EXCEPT
+```
+
+---
+
+## Aggregation
+
+Understand:
+
+* grouping
+* multiple dimensions
+* conditional aggregation
+* `COUNT(DISTINCT ...)`
+* aggregation grain
+
+---
+
+## Window Functions
+
+Understand:
+
+```text
+ROW_NUMBER
+RANK
+DENSE_RANK
+LAG
+LEAD
+SUM OVER
+```
+
+and:
+
+```text
+PARTITION BY
+ORDER BY
+window frames
+```
+
+---
+
+## Pagination
+
+Understand:
+
+```text
+OFFSET pagination
+Keyset/cursor pagination
+```
+
+and their trade-offs.
+
+---
+
+## Performance
+
+Understand:
+
+```text
+EXPLAIN
+EXPLAIN ANALYZE
+Sequential Scan
+Index Scan
+estimated rows
+actual rows
+query cost
+```
+
+without pretending to be a PostgreSQL internals expert yet.
+
+---
+
+## Optimization
+
+Follow:
+
+```text
+Correctness
+ ↓
+Baseline
+ ↓
+Measure
+ ↓
+Inspect
+ ↓
+Identify bottleneck
+ ↓
+Change one thing
+ ↓
+Measure again
+ ↓
+Verify correctness
+```
+
+---
+
+# Feynman Assessment
+
+Without notes, explain:
+
+### 1.
+
+What does it mean when we say:
+
+> "One row represents one customer."
+
+Why is this important?
+
+---
+
+### 2.
+
+Why can joining `orders` with `order_items` accidentally inflate revenue?
+
+---
+
+### 3.
+
+What's the difference between:
+
+```text
+GROUP BY
+```
+
+and:
+
+```text
+Window Function
+```
+
+---
+
+### 4.
+
+When would you use `EXISTS` instead of retrieving all matching rows?
+
+---
+
+### 5.
+
+Why does `LEFT JOIN` sometimes behave like an `INNER JOIN` after adding a `WHERE` condition?
+
+---
+
+### 6.
+
+Why isn't a CTE automatically faster than a subquery?
+
+---
+
+### 7.
+
+Why can OFFSET pagination become problematic at large offsets?
+
+---
+
+### 8.
+
+Why should you run `EXPLAIN ANALYZE` before claiming that an index will improve a query?
+
+---
+
+### 9.
+
+What is the difference between:
+
+```text
+estimated rows
+```
+
+and:
+
+```text
+actual rows
+```
+
+---
+
+### 10.
+
+Why is query optimization useless if the original query returns the wrong result?
+
+---
+
+# Deliberate Practice Method
+
+For difficult SQL problems:
+
+## Attempt 1
+
+Understand the business question.
+
+## Attempt 2
+
+Write the simplest correct query.
+
+## Attempt 3
+
+Break it into intermediate results.
+
+## Attempt 4
+
+Rewrite using another technique.
+
+For example:
+
+```text
+JOIN
+vs
+EXISTS
+vs
+CTE
+```
+
+## Attempt 5
+
+Compare readability.
+
+## Attempt 6
+
+Compare execution plans.
+
+## Attempt 7
+
+Explain the final choice.
+
+This prevents SQL from becoming a syntax memorization exercise.
+
+---
+
+# Spaced Repetition
+
+### Same day
+
+Solve 3 queries from memory.
+
+### Next day
+
+Solve one join problem and one aggregation problem.
+
+### After 3–4 days
+
+Solve one CTE/window-function problem.
+
+### After 1 week
+
+Rebuild a complex query without notes.
+
+### After V03
+
+Take a random business question and design the query from scratch.
+
+---
+
+# Engineering Notes
+
+Maintain a query engineering notebook:
+
+```text
+database/
+└── query-engineering/
+    ├── query-thinking.md
+    ├── joins.md
+    ├── subqueries.md
+    ├── ctes.md
+    ├── recursive-queries.md
+    ├── set-operations.md
+    ├── aggregations.md
+    ├── window-functions.md
+    ├── pagination.md
+    ├── explain.md
+    ├── optimization.md
+    └── sql-antipatterns.md
+```
+
+For important queries record:
+
+```text
+Problem
+Result grain
+Tables
+Relationships
+Query
+Expected result
+Actual result
+Edge cases
+Execution plan
+Performance
+Decision
+```
+
+This builds a real engineering knowledge base.
+
+---
+
+# V03 Completion Criteria
+
+Do not consider V03 complete because you memorized advanced SQL syntax.
+
+You should be able to:
+
+* Translate business questions into SQL problems.
+* Identify result grain.
+* Reason about joins.
+* Diagnose duplicate rows.
+* Use subqueries appropriately.
+* Use CTEs to decompose queries.
+* Understand recursive queries.
+* Use set operations.
+* Perform advanced aggregations.
+* Use window functions.
+* Solve ranking problems.
+* Calculate running totals.
+* Compare rows with `LAG`/`LEAD`.
+* Handle NULL and edge cases.
+* Design reliable pagination.
+* Write readable SQL.
+* Identify common SQL anti-patterns.
+* Test query correctness.
+* Use `EXPLAIN`.
+* Use `EXPLAIN ANALYZE`.
+* Understand basic execution plans.
+* Make evidence-based optimization decisions.
+* Diagnose real query failures.
+* Construct SQL safely.
+* Complete the Business Analytics Query Engine project.
+
+Most importantly:
+
+> **Given a real business question, you should be able to reason from the required result back to the data model and construct a correct query without blindly searching for a syntax pattern.**
+
+---
+
+# V03 Final Mental Model
+
+The core mental model of this volume is:
+
+```text
+BUSINESS QUESTION
+        ↓
+What should one row represent?
+        ↓
+Which data is required?
+        ↓
+Which tables?
+        ↓
+Which relationships?
+        ↓
+JOIN / EXISTS / SUBQUERY
+        ↓
+FILTER
+        ↓
+GROUP / AGGREGATE
+        ↓
+WINDOW / RANK
+        ↓
+TRANSFORM
+        ↓
+ORDER / PAGINATE
+        ↓
+CORRECTNESS CHECK
+        ↓
+EXPLAIN
+        ↓
+MEASURE
+        ↓
+OPTIMIZE
+        ↓
+VERIFY AGAIN
+```
+
+That is **query engineering**.
+
+---
+
+# V03 → V04 Transition
+
+V03 teaches you to reason about SQL.
+
+V04 will now ask:
+
+> **What is PostgreSQL actually doing underneath these queries?**
+
+We will move into:
+
+```text
+PostgreSQL Architecture
+        ↓
+Connections
+        ↓
+Storage
+        ↓
+Pages & Tuples
+        ↓
+MVCC
+        ↓
+WAL
+        ↓
+VACUUM
+        ↓
+Indexes
+        ↓
+Query Planner
+        ↓
+Locks
+        ↓
+Concurrency
+        ↓
+Partitioning
+        ↓
+Replication
+        ↓
+Backup / Recovery
+        ↓
+Performance Troubleshooting
+        ↓
+Production PostgreSQL
+```
+
+But we will keep the same rule:
+
+> **Deep enough to make good engineering decisions, not deep enough to waste time on specialist internals that don't serve the backend + DevOps + AI path.**
+
+**End of DB V03.**

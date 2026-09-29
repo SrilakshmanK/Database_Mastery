@@ -1,0 +1,3782 @@
+# DB V05 — MongoDB, Redis & Polyglot Persistence
+
+## Database Engineering Roadmap — Volume 05
+
+---
+
+# 0. Volume Purpose
+
+So far, the database roadmap has focused heavily on relational systems:
+
+```text
+DB V01
+Database Fundamentals
+        ↓
+DB V02
+PostgreSQL + SQL
+        ↓
+DB V03
+SQL + Query Engineering
+        ↓
+DB V04
+PostgreSQL Internals + Production
+```
+
+Now we expand our database thinking.
+
+Real backend and AI systems do not always use one database.
+
+A production architecture might look like:
+
+```text
+                    Application
+                         │
+          ┌──────────────┼──────────────┐
+          ▼              ▼              ▼
+      PostgreSQL      MongoDB         Redis
+      source of       flexible        fast
+       truth           data          access
+```
+
+The important question is not:
+
+> "Which database is better?"
+
+The engineering question is:
+
+> **What kind of data do I have, what access pattern do I need, and which storage model fits that requirement?**
+
+That is the purpose of V05.
+
+---
+
+# 1. What You Will Learn
+
+By the end of this volume you should understand:
+
+* why NoSQL databases exist
+* document databases
+* MongoDB architecture
+* BSON
+* collections and documents
+* MongoDB data modeling
+* embedding vs referencing
+* MongoDB CRUD
+* MongoDB indexes
+* aggregation pipelines
+* MongoDB transactions
+* MongoDB consistency concepts
+* MongoDB with Node.js
+* MongoDB with Python/FastAPI
+* Redis fundamentals
+* Redis data structures
+* caching
+* TTL
+* sessions
+* rate limiting
+* counters
+* distributed locks conceptually
+* cache invalidation
+* cache-aside pattern
+* cache stampede
+* PostgreSQL vs MongoDB vs Redis
+* polyglot persistence
+* database selection
+* consistency and trade-offs
+
+---
+
+# 2. What We Will NOT Do
+
+We will deliberately avoid unnecessary specialist depth.
+
+We will not attempt to become experts in:
+
+* MongoDB server internals
+* every MongoDB operator
+* every Redis command
+* Redis module development
+* MongoDB sharding internals
+* Redis cluster internals
+* obscure NoSQL theory
+* distributed database research
+* every possible NoSQL database
+
+We care about the databases you are likely to use in:
+
+```text
+Backend Engineering
++
+DevOps
++
+Cloud
++
+AI Applications
++
+RAG Systems
+```
+
+---
+
+# 3. Core Mental Model
+
+PostgreSQL taught us:
+
+```text
+Rows
+Columns
+Relationships
+SQL
+Transactions
+```
+
+MongoDB gives us:
+
+```text
+Documents
+Collections
+Embedded Data
+References
+Document Queries
+Aggregation Pipelines
+```
+
+Redis gives us:
+
+```text
+Keys
+Values
+In-Memory Data
+Expiration
+Fast Access
+```
+
+The larger architecture becomes:
+
+```text
+                     APPLICATION
+                          │
+             ┌────────────┼────────────┐
+             ▼            ▼            ▼
+        PostgreSQL     MongoDB       Redis
+             │            │            │
+          Durable      Flexible      Fast
+          Relational   Documents     Temporary/
+                                     Derived Data
+```
+
+But these boundaries are not absolute.
+
+The actual architecture depends on the application.
+
+---
+
+# 4. Chapters
+
+## Chapter 01 — Why NoSQL Exists
+
+## Chapter 02 — Database Model Comparison
+
+## Chapter 03 — MongoDB Mental Model
+
+## Chapter 04 — Documents, BSON & Collections
+
+## Chapter 05 — MongoDB Installation & Environment
+
+## Chapter 06 — MongoDB CRUD
+
+## Chapter 07 — MongoDB Query Operators
+
+## Chapter 08 — MongoDB Data Modeling
+
+## Chapter 09 — Embedding vs Referencing
+
+## Chapter 10 — Schema Validation & Data Integrity
+
+## Chapter 11 — MongoDB Indexes
+
+## Chapter 12 — MongoDB Aggregation Pipeline
+
+## Chapter 13 — MongoDB Transactions & Consistency
+
+## Chapter 14 — MongoDB with Node.js
+
+## Chapter 15 — MongoDB with FastAPI
+
+## Chapter 16 — Redis Mental Model
+
+## Chapter 17 — Redis Data Structures
+
+## Chapter 18 — Redis Expiration & TTL
+
+## Chapter 19 — Redis Caching
+
+## Chapter 20 — Sessions, Counters & Rate Limiting
+
+## Chapter 21 — Cache Invalidation & Failure Modes
+
+## Chapter 22 — Redis Reliability Fundamentals
+
+## Chapter 23 — PostgreSQL vs MongoDB vs Redis
+
+## Chapter 24 — Polyglot Persistence
+
+## Chapter 25 — Database Selection & Architecture Decisions
+
+## Chapter 26 — Mini-Project: Polyglot Backend Data Layer
+
+## Chapter 27 — Failure Injection & Architecture Drills
+
+## Chapter 28 — Final Review & Engineering Assessment
+
+---
+
+# CHAPTER 01 — WHY NOSQL EXISTS
+
+First, understand the problem.
+
+SQL databases are extremely powerful.
+
+So why did databases like MongoDB and Redis become popular?
+
+Not because relational databases became useless.
+
+Different workloads create different requirements.
+
+---
+
+# 1.1 Relational Strengths
+
+PostgreSQL is excellent when you need:
+
+```text
+Strong relationships
+Structured data
+Constraints
+Transactions
+Complex queries
+Reporting
+Consistency
+```
+
+For example:
+
+```text
+Banking
+Orders
+Payments
+Accounting
+Inventory
+```
+
+---
+
+# 1.2 Document Database Strengths
+
+Some applications work naturally with documents.
+
+Example:
+
+```json
+{
+  "name": "Product A",
+  "price": 1200,
+  "tags": ["electronics", "mobile"],
+  "specifications": {
+    "ram": "8GB",
+    "storage": "256GB"
+  }
+}
+```
+
+This structure can map naturally to application objects.
+
+---
+
+# 1.3 Key-Value Systems
+
+Some requirements are simply:
+
+> Give me this value extremely quickly.
+
+Example:
+
+```text
+session:user:123
+        ↓
+session data
+```
+
+Redis is designed for this kind of workload.
+
+---
+
+# 1.4 The Important Lesson
+
+NoSQL does not mean:
+
+> "SQL databases are outdated."
+
+It means:
+
+> **Different data models solve different problems.**
+
+---
+
+# CHAPTER 02 — DATABASE MODEL COMPARISON
+
+Let's establish the major models.
+
+---
+
+# 2.1 Relational
+
+Example:
+
+```text
+customers
+orders
+products
+```
+
+Data is organized into related tables.
+
+Best suited for many structured transactional workloads.
+
+---
+
+# 2.2 Document
+
+Example:
+
+```json
+{
+  "_id": "123",
+  "name": "Sri",
+  "skills": [
+    "JavaScript",
+    "React",
+    "Node.js"
+  ]
+}
+```
+
+MongoDB stores documents in collections.
+
+---
+
+# 2.3 Key-Value
+
+Conceptually:
+
+```text
+key
+ ↓
+value
+```
+
+Example:
+
+```text
+user:123:session
+       ↓
+session information
+```
+
+Redis is commonly used this way.
+
+---
+
+# 2.4 Search Systems
+
+Search engines optimize for:
+
+```text
+Text search
+Ranking
+Filtering
+Aggregations
+```
+
+These are not automatically replacements for PostgreSQL.
+
+---
+
+# 2.5 Vector Databases
+
+Vector databases optimize for:
+
+```text
+Embedding
+Similarity
+Nearest-neighbor retrieval
+```
+
+We will connect this to AI in DB V06.
+
+---
+
+# 2.6 Database Selection
+
+The correct question is:
+
+```text
+What data?
+What consistency?
+What access pattern?
+What scale?
+What latency?
+What operational complexity?
+```
+
+Not:
+
+> "Which database is trending?"
+
+---
+
+# CHAPTER 03 — MONGODB MENTAL MODEL
+
+MongoDB is a document-oriented database.
+
+The hierarchy is approximately:
+
+```text
+MongoDB Server
+      ↓
+Database
+      ↓
+Collection
+      ↓
+Document
+      ↓
+Field
+```
+
+Compare with PostgreSQL:
+
+```text
+PostgreSQL Server
+      ↓
+Database
+      ↓
+Schema
+      ↓
+Table
+      ↓
+Row
+      ↓
+Column
+```
+
+---
+
+# 3.1 Collection
+
+MongoDB's collection is roughly analogous to a relational table.
+
+But it is not identical.
+
+A collection contains documents.
+
+---
+
+# 3.2 Document
+
+Example:
+
+```json
+{
+  "_id": "user123",
+  "name": "Sri",
+  "email": "sri@example.com",
+  "skills": [
+    "Node.js",
+    "React",
+    "MongoDB"
+  ]
+}
+```
+
+A document can contain:
+
+* strings
+* numbers
+* booleans
+* arrays
+* nested objects
+* dates
+* ObjectIds
+* other BSON types
+
+---
+
+# 3.3 Flexible Schema
+
+MongoDB allows documents in the same collection to have different structures.
+
+For example:
+
+```json
+{
+  "name": "User A",
+  "age": 22
+}
+```
+
+and:
+
+```json
+{
+  "name": "User B",
+  "age": 25,
+  "skills": ["Python"]
+}
+```
+
+can exist in the same collection.
+
+But:
+
+> Flexible schema does not mean no schema.
+
+Your application still has a data model.
+
+---
+
+# 3.4 Schema-on-Read vs Schema-on-Write
+
+Relational systems commonly enforce more structure through schema definitions.
+
+MongoDB can allow more flexibility.
+
+But uncontrolled flexibility can produce:
+
+```text
+Document A
+field = email
+
+Document B
+field = emailAddress
+
+Document C
+field = mail
+```
+
+This becomes a maintenance nightmare.
+
+Therefore:
+
+> Flexible schema requires disciplined application design.
+
+---
+
+# CHAPTER 04 — DOCUMENTS, BSON & COLLECTIONS
+
+MongoDB stores documents using BSON.
+
+BSON means:
+
+> Binary JSON.
+
+It extends JSON with additional types and binary representation.
+
+---
+
+# 4.1 Example
+
+```json
+{
+  "_id": ObjectId("..."),
+  "name": "Product A",
+  "price": 1500,
+  "active": true,
+  "createdAt": ISODate("2026-01-01")
+}
+```
+
+---
+
+# 4.2 ObjectId
+
+MongoDB commonly uses:
+
+```text
+ObjectId
+```
+
+as the default `_id`.
+
+It is designed to provide a unique identifier.
+
+You don't need to memorize its internal bit layout.
+
+Understand:
+
+> `_id` uniquely identifies a document within the collection.
+
+---
+
+# 4.3 Arrays
+
+Documents can naturally contain arrays:
+
+```json
+{
+  "name": "Sri",
+  "skills": [
+    "Node.js",
+    "React",
+    "PostgreSQL"
+  ]
+}
+```
+
+This is one of the major differences from normalized relational modeling.
+
+---
+
+# 4.4 Nested Documents
+
+```json
+{
+  "name": "Sri",
+  "address": {
+    "city": "Coimbatore",
+    "country": "India"
+  }
+}
+```
+
+This is useful when the nested data belongs naturally to the parent document.
+
+---
+
+# CHAPTER 05 — MONGODB INSTALLATION & ENVIRONMENT
+
+Use Ubuntu-first development.
+
+You can work with:
+
+```text
+Local MongoDB
+```
+
+or:
+
+```text
+MongoDB Atlas
+```
+
+The conceptual architecture is:
+
+```text
+Application
+     ↓
+MongoDB Driver
+     ↓
+MongoDB Server
+```
+
+---
+
+# 5.1 Local Environment
+
+Verify your MongoDB installation using the official client/server tools available in your environment.
+
+Typical development components include:
+
+```text
+mongosh
+MongoDB Server
+```
+
+---
+
+# 5.2 MongoDB Atlas
+
+Atlas is a managed MongoDB service.
+
+Conceptually:
+
+```text
+Application
+      ↓
+Internet / Private Network
+      ↓
+MongoDB Atlas
+```
+
+Managed infrastructure doesn't remove database responsibilities.
+
+You still need:
+
+* authentication
+* network security
+* indexes
+* backups
+* schema discipline
+* monitoring
+* cost control
+
+---
+
+# 5.3 Environment Separation
+
+Use separate environments:
+
+```text
+development
+testing
+production
+```
+
+Never use production data casually in local development.
+
+---
+
+# CHAPTER 06 — MONGODB CRUD
+
+CRUD:
+
+```text
+Create
+Read
+Update
+Delete
+```
+
+---
+
+# 6.1 Insert
+
+Example:
+
+```javascript
+db.users.insertOne({
+  name: "Sri",
+  email: "sri@example.com",
+  age: 22
+});
+```
+
+---
+
+# 6.2 Insert Many
+
+```javascript
+db.users.insertMany([
+  {
+    name: "User A",
+    age: 20
+  },
+  {
+    name: "User B",
+    age: 25
+  }
+]);
+```
+
+---
+
+# 6.3 Find
+
+```javascript
+db.users.find({});
+```
+
+---
+
+# 6.4 Filter
+
+```javascript
+db.users.find({
+  age: { $gt: 21 }
+});
+```
+
+---
+
+# 6.5 Projection
+
+Return only selected fields:
+
+```javascript
+db.users.find(
+  { age: { $gt: 21 } },
+  { name: 1, email: 1 }
+);
+```
+
+---
+
+# 6.6 Update
+
+```javascript
+db.users.updateOne(
+  { email: "sri@example.com" },
+  {
+    $set: {
+      age: 23
+    }
+  }
+);
+```
+
+---
+
+# 6.7 Delete
+
+```javascript
+db.users.deleteOne({
+  email: "sri@example.com"
+});
+```
+
+Be extremely careful with:
+
+```javascript
+deleteMany({})
+```
+
+because it can remove an entire collection's data.
+
+---
+
+# CHAPTER 07 — MONGODB QUERY OPERATORS
+
+MongoDB provides query operators.
+
+Important categories:
+
+```text
+Comparison
+Logical
+Array
+Element
+Evaluation
+```
+
+---
+
+# 7.1 Comparison
+
+```text
+$eq
+$ne
+$gt
+$gte
+$lt
+$lte
+$in
+$nin
+```
+
+Example:
+
+```javascript
+db.products.find({
+  price: {
+    $gte: 1000,
+    $lte: 5000
+  }
+});
+```
+
+---
+
+# 7.2 Logical
+
+```text
+$and
+$or
+$not
+$nor
+```
+
+Example:
+
+```javascript
+db.users.find({
+  $or: [
+    { age: { $lt: 18 } },
+    { status: "inactive" }
+  ]
+});
+```
+
+---
+
+# 7.3 Array Queries
+
+Suppose:
+
+```json
+{
+  "skills": ["Node.js", "React"]
+}
+```
+
+You can query:
+
+```javascript
+db.users.find({
+  skills: "React"
+});
+```
+
+MongoDB can match array contents naturally.
+
+---
+
+# 7.4 `$elemMatch`
+
+Useful when multiple conditions must apply to the same array element.
+
+This becomes important when working with arrays of objects.
+
+---
+
+# 7.5 Nested Fields
+
+Example:
+
+```javascript
+db.users.find({
+  "address.city": "Coimbatore"
+});
+```
+
+The dot notation allows access to nested fields.
+
+---
+
+# CHAPTER 08 — MONGODB DATA MODELING
+
+This is the most important MongoDB chapter.
+
+Don't start with:
+
+> "How do I convert my PostgreSQL tables into MongoDB collections?"
+
+Start with:
+
+> **How will the application use the data?**
+
+---
+
+# 8.1 Relational Thinking
+
+PostgreSQL often encourages:
+
+```text
+Normalize
+Separate entities
+Join when needed
+```
+
+MongoDB often encourages:
+
+```text
+Model around access patterns
+Embed data that belongs together
+Reference data that should remain independent
+```
+
+---
+
+# 8.2 Example
+
+Suppose:
+
+```text
+user
+addresses
+```
+
+If a user usually reads their address together with their profile, embedding may make sense:
+
+```json
+{
+  "_id": 1,
+  "name": "Sri",
+  "address": {
+    "city": "Coimbatore",
+    "country": "India"
+  }
+}
+```
+
+---
+
+# 8.3 Data Modeling Question
+
+Ask:
+
+```text
+How often is this data read?
+How often is it updated?
+How large can it become?
+Does it belong to one parent?
+Does it have an independent lifecycle?
+```
+
+These questions drive the model.
+
+---
+
+# CHAPTER 09 — EMBEDDING VS REFERENCING
+
+This is one of the most important MongoDB decisions.
+
+---
+
+# 9.1 Embedding
+
+Example:
+
+```json
+{
+  "_id": 1,
+  "name": "Sri",
+  "addresses": [
+    {
+      "city": "Coimbatore"
+    }
+  ]
+}
+```
+
+Advantages:
+
+```text
+Single document read
+Natural object structure
+Often fewer queries
+```
+
+---
+
+# 9.2 Referencing
+
+Instead:
+
+```json
+{
+  "_id": 1,
+  "name": "Sri",
+  "addressId": 500
+}
+```
+
+and:
+
+```json
+{
+  "_id": 500,
+  "city": "Coimbatore"
+}
+```
+
+This is useful when the referenced data has its own lifecycle or is shared.
+
+---
+
+# 9.3 One-to-Few
+
+Embedding is often appropriate when:
+
+```text
+one user
+→ few addresses
+```
+
+---
+
+# 9.4 One-to-Many
+
+Consider:
+
+```text
+one customer
+→ thousands of orders
+```
+
+Embedding all orders inside the customer document can become problematic.
+
+Referencing orders as separate documents may be more appropriate.
+
+---
+
+# 9.5 Unbounded Arrays
+
+Avoid designs where an array can grow without a practical limit.
+
+For example:
+
+```json
+{
+  "user": "123",
+  "allEvents": [
+    ...
+  ]
+}
+```
+
+If millions of events accumulate, the document becomes problematic.
+
+---
+
+# 9.6 Rule
+
+A useful starting principle:
+
+> Embed data that is naturally owned and commonly read with the parent.
+
+> Reference data that has an independent lifecycle, is shared, or can grow without bound.
+
+These are guidelines, not absolute rules.
+
+---
+
+# CHAPTER 10 — SCHEMA VALIDATION & DATA INTEGRITY
+
+Flexible schema does not mean careless schema.
+
+---
+
+# 10.1 Validation
+
+MongoDB can enforce document validation rules.
+
+For example:
+
+```text
+email must exist
+age must be a number
+status must be one of allowed values
+```
+
+---
+
+# 10.2 Application Validation
+
+Backend frameworks can also validate data.
+
+For example:
+
+```text
+FastAPI
+Pydantic
+```
+
+or:
+
+```text
+Node.js
+Zod
+Mongoose
+```
+
+But validation should be designed carefully across the application/database boundary.
+
+---
+
+# 10.3 Why Database Validation Matters
+
+Imagine two backend services writing to the same collection.
+
+If only one service validates:
+
+```text
+Service A
+✓ valid data
+
+Service B
+✗ malformed data
+```
+
+Database-level validation provides another layer of protection.
+
+---
+
+# 10.4 Defense in Depth
+
+Use:
+
+```text
+API validation
++
+application validation
++
+database validation
+```
+
+where appropriate.
+
+---
+
+# CHAPTER 11 — MONGODB INDEXES
+
+MongoDB indexes serve the same fundamental purpose as PostgreSQL indexes:
+
+> Reduce unnecessary work for supported access patterns.
+
+---
+
+# 11.1 Basic Index
+
+Example:
+
+```javascript
+db.users.createIndex({
+  email: 1
+});
+```
+
+---
+
+# 11.2 Query
+
+```javascript
+db.users.find({
+  email: "sri@example.com"
+});
+```
+
+The index can support efficient lookup.
+
+---
+
+# 11.3 Compound Index
+
+Example:
+
+```javascript
+db.orders.createIndex({
+  customerId: 1,
+  createdAt: -1
+});
+```
+
+This can support queries involving both fields.
+
+---
+
+# 11.4 Index Order
+
+The order of fields in a compound index matters.
+
+Think:
+
+```text
+(customerId, createdAt)
+```
+
+as an ordered access path.
+
+You should design indexes from actual query patterns.
+
+---
+
+# 11.5 Explain
+
+MongoDB provides query explanation tools.
+
+Conceptually:
+
+```javascript
+db.orders.find({
+  customerId: 123
+}).explain("executionStats");
+```
+
+Inspect:
+
+```text
+documents examined
+documents returned
+index usage
+execution statistics
+```
+
+---
+
+# 11.6 Index Cost
+
+Just like PostgreSQL:
+
+```text
+Index
+ ↓
+faster reads
++
+storage
++
+write/update overhead
+```
+
+Don't index everything.
+
+---
+
+# CHAPTER 12 — MONGODB AGGREGATION PIPELINE
+
+MongoDB's aggregation pipeline is one of its most powerful features.
+
+---
+
+# 12.1 Mental Model
+
+Think:
+
+```text
+Documents
+   ↓
+Stage 1
+   ↓
+Stage 2
+   ↓
+Stage 3
+   ↓
+Result
+```
+
+---
+
+# 12.2 `$match`
+
+Filter documents:
+
+```javascript
+{
+  $match: {
+    status: "completed"
+  }
+}
+```
+
+---
+
+# 12.3 `$group`
+
+Group documents:
+
+```javascript
+{
+  $group: {
+    _id: "$customerId",
+    totalSpent: {
+      $sum: "$amount"
+    }
+  }
+}
+```
+
+---
+
+# 12.4 `$sort`
+
+```javascript
+{
+  $sort: {
+    totalSpent: -1
+  }
+}
+```
+
+---
+
+# 12.5 `$limit`
+
+```javascript
+{
+  $limit: 10
+}
+```
+
+---
+
+# 12.6 Pipeline Example
+
+```javascript
+db.orders.aggregate([
+  {
+    $match: {
+      status: "completed"
+    }
+  },
+  {
+    $group: {
+      _id: "$customerId",
+      totalSpent: {
+        $sum: "$amount"
+      }
+    }
+  },
+  {
+    $sort: {
+      totalSpent: -1
+    }
+  },
+  {
+    $limit: 10
+  }
+]);
+```
+
+Mental model:
+
+```text
+completed orders
+      ↓
+customer totals
+      ↓
+sort
+      ↓
+top 10
+```
+
+Very similar to the SQL reasoning developed in V03.
+
+---
+
+# 12.7 `$project`
+
+Transform output fields.
+
+---
+
+# 12.8 `$unwind`
+
+Convert array elements into separate pipeline documents.
+
+Example:
+
+```text
+Document
+  skills: [A, B, C]
+```
+
+becomes conceptually:
+
+```text
+Document + A
+Document + B
+Document + C
+```
+
+---
+
+# 12.9 `$lookup`
+
+MongoDB can perform join-like operations.
+
+But don't automatically design MongoDB like a relational database.
+
+If you frequently need complicated joins, reconsider whether the document model matches the access pattern.
+
+---
+
+# CHAPTER 13 — MONGODB TRANSACTIONS & CONSISTENCY
+
+MongoDB supports transactions.
+
+This is important because an old misconception is:
+
+> "NoSQL means no transactions."
+
+That's incorrect.
+
+---
+
+# 13.1 Single-Document Atomicity
+
+MongoDB operations on a single document have strong atomicity guarantees.
+
+This is one reason document modeling is important.
+
+If related information can safely live inside one document, you may avoid cross-document transaction complexity.
+
+---
+
+# 13.2 Multi-Document Transactions
+
+MongoDB supports transactions spanning multiple documents/collections under supported deployment configurations.
+
+Conceptually:
+
+```text
+BEGIN
+ ↓
+operation 1
+ ↓
+operation 2
+ ↓
+COMMIT
+```
+
+or:
+
+```text
+ROLLBACK
+```
+
+---
+
+# 13.3 Important Design Principle
+
+Transactions are useful.
+
+But don't use transactions to compensate for a poor data model.
+
+Ask first:
+
+> Can the data model make the operation naturally atomic?
+
+---
+
+# 13.4 Consistency Trade-Off
+
+Database architecture involves trade-offs between:
+
+```text
+Consistency
+Availability
+Latency
+Scalability
+Complexity
+```
+
+You need to understand the requirements before choosing a design.
+
+---
+
+# CHAPTER 14 — MONGODB WITH NODE.JS
+
+This connects directly to your backend development.
+
+---
+
+# 14.1 Architecture
+
+```text
+React
+  ↓
+Node.js / Express
+  ↓
+MongoDB Driver / ODM
+  ↓
+MongoDB
+```
+
+---
+
+# 14.2 Driver vs ODM
+
+You may encounter:
+
+```text
+MongoDB Node.js Driver
+```
+
+and ODMs such as:
+
+```text
+Mongoose
+```
+
+An ODM can provide:
+
+* models
+* validation
+* middleware
+* schema definitions
+* convenient query APIs
+
+But:
+
+> An ODM does not remove the need to understand MongoDB.
+
+---
+
+# 14.3 Connection Management
+
+Don't create a new database connection for every request.
+
+Use a managed connection/pool.
+
+Conceptually:
+
+```text
+Application
+      ↓
+MongoDB connection pool
+      ↓
+MongoDB
+```
+
+---
+
+# 14.4 Repository Pattern
+
+A backend can separate:
+
+```text
+Controller
+   ↓
+Service
+   ↓
+Repository
+   ↓
+MongoDB
+```
+
+This keeps database operations isolated from HTTP concerns.
+
+---
+
+# 14.5 Parameter Safety
+
+Never blindly interpolate user input into database operations.
+
+Validate and constrain inputs.
+
+---
+
+# CHAPTER 15 — MONGODB WITH FASTAPI
+
+The same principles apply to Python.
+
+Architecture:
+
+```text
+FastAPI
+   ↓
+Service Layer
+   ↓
+Repository / Data Access
+   ↓
+MongoDB Driver
+   ↓
+MongoDB
+```
+
+---
+
+# 15.1 Pydantic
+
+Use Pydantic models for request/response validation.
+
+Conceptually:
+
+```text
+HTTP Input
+   ↓
+Pydantic validation
+   ↓
+Service
+   ↓
+MongoDB
+```
+
+---
+
+# 15.2 Async
+
+MongoDB access can be integrated into asynchronous Python applications using appropriate async-compatible drivers/libraries.
+
+The principle remains:
+
+> Don't block the event loop with inappropriate synchronous database operations.
+
+---
+
+# 15.3 Data Validation
+
+Keep clear boundaries:
+
+```text
+API schema
+Database document
+Response schema
+```
+
+They do not have to be identical.
+
+---
+
+# CHAPTER 16 — REDIS MENTAL MODEL
+
+Now we move to Redis.
+
+Redis is an in-memory data store commonly used for:
+
+* caching
+* sessions
+* counters
+* rate limiting
+* queues
+* temporary state
+* distributed coordination patterns
+
+---
+
+# 16.1 Core Model
+
+Redis is fundamentally:
+
+```text
+KEY
+ ↓
+VALUE
+```
+
+Example:
+
+```text
+user:123:profile
+       ↓
+serialized data
+```
+
+---
+
+# 16.2 In-Memory
+
+Redis is designed for very fast access using memory.
+
+This is a major reason it is useful as a cache and fast state store.
+
+---
+
+# 16.3 Redis Is Not Automatically Your Primary Database
+
+A common architecture is:
+
+```text
+Application
+   │
+   ├── Redis
+   │
+   └── PostgreSQL
+```
+
+Redis may contain derived or temporary data.
+
+PostgreSQL may remain the durable source of truth.
+
+---
+
+# CHAPTER 17 — REDIS DATA STRUCTURES
+
+Redis provides more than strings.
+
+Important structures:
+
+```text
+String
+Hash
+List
+Set
+Sorted Set
+Stream
+```
+
+---
+
+# 17.1 String
+
+```text
+SET user:123:name "Sri"
+```
+
+---
+
+# 17.2 Get
+
+```text
+GET user:123:name
+```
+
+---
+
+# 17.3 Hash
+
+Useful for object-like fields:
+
+```text
+HSET user:123 name "Sri" age 22
+```
+
+Conceptually:
+
+```text
+user:123
+ ├── name
+ └── age
+```
+
+---
+
+# 17.4 List
+
+Useful for ordered collections and some queue patterns.
+
+---
+
+# 17.5 Set
+
+Useful when uniqueness matters.
+
+Example:
+
+```text
+online_users
+```
+
+---
+
+# 17.6 Sorted Set
+
+Each member has a score.
+
+Useful for:
+
+```text
+leaderboards
+ranking
+priority-like patterns
+```
+
+---
+
+# 17.7 Streams
+
+Redis Streams provide append-oriented event data structures.
+
+They can support messaging/event-processing patterns.
+
+We will use them conceptually, not attempt to build a complete messaging platform.
+
+---
+
+# CHAPTER 18 — REDIS EXPIRATION & TTL
+
+One of Redis's most important features is expiration.
+
+---
+
+# 18.1 TTL
+
+Example:
+
+```text
+session:abc
+TTL = 3600 seconds
+```
+
+After the expiration period, Redis can remove the key.
+
+---
+
+# 18.2 Why TTL Matters
+
+Useful for:
+
+```text
+Caches
+OTP-like temporary state
+Sessions
+Temporary locks
+Rate-limit windows
+Short-lived tokens
+```
+
+---
+
+# 18.3 Key Expiration
+
+Conceptually:
+
+```text
+SET cache:user:123 data
+EXPIRE cache:user:123 300
+```
+
+The data is intended to live temporarily.
+
+---
+
+# 18.4 TTL Is Not Business Logic
+
+Don't rely on Redis expiration alone for permanent business records.
+
+For example:
+
+```text
+payment
+order
+invoice
+```
+
+should not disappear simply because a TTL expired.
+
+---
+
+# CHAPTER 19 — REDIS CACHING
+
+Caching is one of the most important practical uses of Redis.
+
+---
+
+# 19.1 Why Cache?
+
+Suppose:
+
+```text
+API
+ ↓
+PostgreSQL
+ ↓
+Expensive query
+```
+
+If the same result is requested thousands of times:
+
+```text
+1000 requests
+→ 1000 database queries
+```
+
+A cache may reduce the database workload.
+
+---
+
+# 19.2 Cache-Aside Pattern
+
+This is one of the most common patterns.
+
+```text
+Request
+   ↓
+Check Redis
+   │
+   ├── HIT → return data
+   │
+   └── MISS
+          ↓
+      PostgreSQL
+          ↓
+      Store in Redis
+          ↓
+       Return
+```
+
+---
+
+# 19.3 Example
+
+Request:
+
+```text
+GET /products/123
+```
+
+Application:
+
+```text
+Redis key:
+product:123
+```
+
+If found:
+
+```text
+return cached result
+```
+
+Otherwise:
+
+```text
+PostgreSQL
+ ↓
+Redis
+ ↓
+Response
+```
+
+---
+
+# 19.4 Cache Key Design
+
+Good:
+
+```text
+product:123
+user:456:profile
+```
+
+Bad:
+
+```text
+data1
+x
+temp
+```
+
+Keys should be predictable and meaningful.
+
+---
+
+# 19.5 TTL Selection
+
+TTL depends on:
+
+```text
+How often data changes
+How stale it can be
+How expensive the source query is
+How much cache storage is available
+```
+
+There is no universal TTL.
+
+---
+
+# CHAPTER 20 — SESSIONS, COUNTERS & RATE LIMITING
+
+Redis becomes extremely useful for backend infrastructure.
+
+---
+
+# 20.1 Sessions
+
+Architecture:
+
+```text
+Browser
+   ↓
+Session ID
+   ↓
+Redis
+   ↓
+Session Data
+```
+
+Useful when session state must be shared across multiple application instances.
+
+---
+
+# 20.2 Counters
+
+Redis can efficiently maintain counters.
+
+Examples:
+
+```text
+page views
+API requests
+login attempts
+likes
+```
+
+---
+
+# 20.3 Rate Limiting
+
+Suppose:
+
+```text
+100 requests / minute
+```
+
+A Redis-backed limiter can track request counts.
+
+Conceptually:
+
+```text
+rate:user:123:minute
+       ↓
+counter
+       ↓
+TTL
+```
+
+---
+
+# 20.4 Rate Limiting Architecture
+
+```text
+Request
+  ↓
+Redis counter
+  ↓
+Allowed?
+ ┌───────┴───────┐
+Yes              No
+ ↓                ↓
+API              429
+```
+
+---
+
+# 20.5 Why Redis?
+
+Because:
+
+```text
+increment
++
+check
++
+expire
+```
+
+can be performed very quickly.
+
+---
+
+# CHAPTER 21 — CACHE INVALIDATION & FAILURE MODES
+
+Caching is easy to add.
+
+Correct caching is difficult.
+
+---
+
+# 21.1 The Classic Problem
+
+PostgreSQL:
+
+```text
+price = 1000
+```
+
+Redis:
+
+```text
+price = 1000
+```
+
+Application updates PostgreSQL:
+
+```text
+price = 1200
+```
+
+Redis still contains:
+
+```text
+1000
+```
+
+Now users receive stale data.
+
+---
+
+# 21.2 Cache Invalidation
+
+After updating the source:
+
+```text
+Update PostgreSQL
+       ↓
+Invalidate Redis key
+```
+
+For example:
+
+```text
+product:123
+```
+
+---
+
+# 21.3 Update vs Delete
+
+Common strategy:
+
+```text
+Database update
+      ↓
+Delete cache
+```
+
+Next request:
+
+```text
+Cache miss
+      ↓
+Database
+      ↓
+Fresh cache
+```
+
+This is often simpler than trying to update every cached representation correctly.
+
+---
+
+# 21.4 Cache Stampede
+
+Suppose a popular cache expires:
+
+```text
+product:123
+```
+
+1000 requests arrive simultaneously.
+
+All miss cache:
+
+```text
+1000 requests
+     ↓
+1000 DB queries
+```
+
+This can overload the database.
+
+---
+
+# 21.5 Possible Mitigations
+
+Depending on requirements:
+
+* jittered TTLs
+* request coalescing
+* locks
+* stale-while-revalidate
+* prewarming
+* controlled refresh
+
+Don't blindly add distributed locks everywhere.
+
+---
+
+# 21.6 Cache Failure
+
+What happens if Redis is down?
+
+A good architecture should define this.
+
+Possibility:
+
+```text
+Redis down
+   ↓
+Fallback to PostgreSQL
+```
+
+if the cache is optional.
+
+But if Redis stores essential session state:
+
+```text
+Redis down
+   ↓
+authentication/session impact
+```
+
+Therefore:
+
+> Redis's role must be explicitly defined.
+
+---
+
+# CHAPTER 22 — REDIS RELIABILITY FUNDAMENTALS
+
+Redis can persist data depending on its configuration and deployment model.
+
+But you should understand the difference between:
+
+```text
+Cache
+```
+
+and:
+
+```text
+Durable datastore
+```
+
+---
+
+# 22.1 Cache Role
+
+If Redis contains:
+
+```text
+derived data
+```
+
+then losing it may be acceptable.
+
+The application can rebuild it from PostgreSQL.
+
+---
+
+# 22.2 State Role
+
+If Redis contains:
+
+```text
+critical session state
+```
+
+then availability and persistence requirements become more important.
+
+---
+
+# 22.3 Persistence Options
+
+Redis provides persistence mechanisms such as:
+
+```text
+RDB snapshots
+AOF
+```
+
+Understand them conceptually.
+
+---
+
+# 22.4 High Availability
+
+Redis can be deployed with replication and other availability mechanisms.
+
+But complexity increases.
+
+The correct question remains:
+
+> What business role does Redis have?
+
+---
+
+# CHAPTER 23 — POSTGRESQL VS MONGODB VS REDIS
+
+There is no universal winner.
+
+---
+
+# 23.1 PostgreSQL
+
+Strong fit for:
+
+```text
+Structured data
+Relationships
+Transactions
+Complex queries
+Financial/business data
+Source of truth
+```
+
+---
+
+# 23.2 MongoDB
+
+Strong fit for:
+
+```text
+Document-shaped data
+Flexible structures
+Rapidly evolving document models
+Nested data
+Application-centric document access
+```
+
+---
+
+# 23.3 Redis
+
+Strong fit for:
+
+```text
+Caching
+Sessions
+Counters
+Rate limiting
+Fast temporary state
+Some queues/streams
+```
+
+---
+
+# 23.4 Example Architecture
+
+Imagine an e-commerce application:
+
+```text
+                    API
+                     │
+         ┌───────────┼───────────┐
+         ▼           ▼           ▼
+    PostgreSQL    MongoDB      Redis
+       │             │            │
+   Orders        Product       Cache
+   Payments      Content       Sessions
+   Users         Flexible      Rate limit
+   Inventory     Metadata      Counters
+```
+
+But this doesn't mean every e-commerce system needs all three.
+
+Additional databases increase:
+
+```text
+Operational complexity
+Monitoring
+Security
+Backups
+Deployment
+Failure modes
+Cost
+```
+
+---
+
+# CHAPTER 24 — POLYGLOT PERSISTENCE
+
+Using different databases for different requirements is called:
+
+> Polyglot persistence.
+
+---
+
+# 24.1 Example
+
+```text
+PostgreSQL
+→ orders
+
+MongoDB
+→ flexible content
+
+Redis
+→ cache
+```
+
+---
+
+# 24.2 Why Use It?
+
+Because different workloads have different requirements.
+
+---
+
+# 24.3 The Cost
+
+Now your architecture contains:
+
+```text
+3 databases
+```
+
+instead of:
+
+```text
+1 database
+```
+
+You now have:
+
+```text
+3 authentication systems
+3 monitoring surfaces
+3 backup strategies
+3 failure modes
+3 upgrade paths
+```
+
+Therefore:
+
+> Don't introduce a second database without a clear reason.
+
+---
+
+# 24.4 Source of Truth
+
+This concept is critical.
+
+For example:
+
+```text
+PostgreSQL
+   ↓
+Source of truth
+```
+
+Redis:
+
+```text
+Derived cache
+```
+
+If Redis disappears:
+
+```text
+Rebuild from PostgreSQL
+```
+
+This creates a much safer architecture.
+
+---
+
+# 24.5 Data Ownership
+
+For each piece of data define:
+
+```text
+Who owns it?
+Where is the source of truth?
+Where are copies stored?
+How are copies updated?
+What happens if the copy disappears?
+```
+
+This is database architecture.
+
+---
+
+# CHAPTER 25 — DATABASE SELECTION & ARCHITECTURE DECISIONS
+
+When designing a system, use a decision process.
+
+---
+
+# Step 1 — Identify Data
+
+What are you storing?
+
+```text
+Orders?
+Documents?
+Sessions?
+Events?
+Embeddings?
+```
+
+---
+
+# Step 2 — Identify Access Pattern
+
+How will you read it?
+
+```text
+By ID?
+Search?
+Aggregation?
+Similarity?
+Time range?
+Ranking?
+```
+
+---
+
+# Step 3 — Identify Consistency Requirements
+
+Does the data require:
+
+```text
+Strong transaction guarantees?
+Eventual consistency?
+Temporary state?
+```
+
+---
+
+# Step 4 — Identify Scale
+
+How large?
+
+```text
+10 MB?
+10 GB?
+10 TB?
+```
+
+And:
+
+```text
+How many reads?
+How many writes?
+```
+
+---
+
+# Step 5 — Identify Latency
+
+Does the application need:
+
+```text
+milliseconds?
+seconds?
+batch processing?
+```
+
+---
+
+# Step 6 — Identify Operational Cost
+
+Ask:
+
+```text
+Can we operate this database?
+Can we monitor it?
+Can we back it up?
+Can we recover it?
+```
+
+---
+
+# Step 7 — Make the Decision
+
+Document:
+
+```text
+Requirement
+Candidate
+Decision
+Reason
+Trade-offs
+Failure mode
+Fallback
+```
+
+---
+
+# Example Decision
+
+Requirement:
+
+> Frequently accessed product data with occasional updates.
+
+Possible design:
+
+```text
+PostgreSQL
+→ source of truth
+
+Redis
+→ cache
+```
+
+Reason:
+
+```text
+Durable relational data
++
+fast repeated reads
+```
+
+---
+
+# CHAPTER 26 — MINI-PROJECT
+
+# Project: Polyglot Backend Data Layer
+
+This project is designed specifically for your backend + DevOps + AI path.
+
+We will build a small backend architecture that intentionally uses:
+
+```text
+PostgreSQL
+MongoDB
+Redis
+```
+
+But each database must have a clear responsibility.
+
+---
+
+# Project Goal
+
+Build a backend service where:
+
+```text
+PostgreSQL
+→ authoritative transactional data
+
+MongoDB
+→ flexible document data
+
+Redis
+→ cache + rate limiting
+```
+
+The application can be:
+
+> **Developer Knowledge & Resource API**
+
+This is deliberately smaller than your flagship project.
+
+It is a learning lab, not a second flagship.
+
+---
+
+# 26.1 Functional Scope
+
+The backend manages:
+
+### Users
+
+Stored in PostgreSQL.
+
+```text
+users
+```
+
+---
+
+### Resources
+
+Flexible documents stored in MongoDB.
+
+Example:
+
+```json
+{
+  "title": "PostgreSQL Indexing",
+  "type": "article",
+  "tags": [
+    "postgresql",
+    "database",
+    "performance"
+  ],
+  "metadata": {
+    "difficulty": "advanced",
+    "source": "internal"
+  }
+}
+```
+
+---
+
+### Cached Resource
+
+Frequently requested resource responses stored in Redis.
+
+```text
+resource:123
+```
+
+---
+
+### Rate Limiting
+
+Redis tracks:
+
+```text
+rate:user:123
+```
+
+---
+
+# 26.2 Architecture
+
+```text
+                         Client
+                           │
+                           ▼
+                     FastAPI / Node
+                           │
+              ┌────────────┼────────────┐
+              ▼            ▼            ▼
+        PostgreSQL      MongoDB       Redis
+        ──────────      ───────       ─────
+        Users           Resources     Cache
+        Auth data       Documents     Rate limit
+        Ownership       Metadata      Temporary state
+```
+
+---
+
+# 26.3 API Endpoints
+
+Implement approximately:
+
+```text
+POST   /users
+GET    /users/:id
+
+POST   /resources
+GET    /resources/:id
+GET    /resources
+
+PUT    /resources/:id
+DELETE /resources/:id
+```
+
+---
+
+# 26.4 Cache Flow
+
+For:
+
+```text
+GET /resources/:id
+```
+
+implement:
+
+```text
+Request
+   ↓
+Redis?
+   │
+   ├── HIT
+   │     ↓
+   │   Response
+   │
+   └── MISS
+         ↓
+      MongoDB
+         ↓
+       Redis
+         ↓
+      Response
+```
+
+---
+
+# 26.5 Update Flow
+
+For:
+
+```text
+PUT /resources/:id
+```
+
+implement:
+
+```text
+Update MongoDB
+      ↓
+Invalidate Redis
+      ↓
+Response
+```
+
+---
+
+# 26.6 Rate Limiting
+
+Example:
+
+```text
+100 requests/minute/user
+```
+
+Use Redis.
+
+When exceeded:
+
+```text
+HTTP 429
+```
+
+---
+
+# 26.7 Required Experiments
+
+Your project must demonstrate:
+
+### Experiment 1
+
+Cache hit.
+
+### Experiment 2
+
+Cache miss.
+
+### Experiment 3
+
+Cache invalidation.
+
+### Experiment 4
+
+Redis unavailable.
+
+### Experiment 5
+
+MongoDB unavailable.
+
+### Experiment 6
+
+PostgreSQL unavailable.
+
+### Experiment 7
+
+Rate-limit exceeded.
+
+### Experiment 8
+
+Different resource document structures.
+
+---
+
+# 26.8 Architecture Documentation
+
+Create:
+
+```text
+docs/
+├── architecture.md
+├── database-responsibilities.md
+├── mongodb-model.md
+├── redis-design.md
+├── caching.md
+├── rate-limiting.md
+└── failure-handling.md
+```
+
+---
+
+# 26.9 Database Responsibility Matrix
+
+Create:
+
+| Data                     | PostgreSQL | MongoDB | Redis |
+| ------------------------ | ---------: | ------: | ----: |
+| Users                    |          ✅ |         |       |
+| Authentication ownership |          ✅ |         |       |
+| Resources                |            |       ✅ |       |
+| Resource cache           |            |         |     ✅ |
+| Rate limits              |            |         |     ✅ |
+| Temporary state          |            |         |     ✅ |
+
+Then explain **why**.
+
+---
+
+# 26.10 Important Rule
+
+Do not store the same data in all three databases without a reason.
+
+For example:
+
+```text
+User
+```
+
+should not automatically exist in:
+
+```text
+PostgreSQL
+MongoDB
+Redis
+```
+
+just because you can.
+
+Every duplicate creates synchronization responsibility.
+
+---
+
+# CHAPTER 27 — FAILURE INJECTION & ARCHITECTURE DRILLS
+
+This chapter is mandatory.
+
+---
+
+# Drill 1 — Redis Failure
+
+Stop Redis in your local environment.
+
+Call:
+
+```text
+GET /resources/:id
+```
+
+Observe the application.
+
+If Redis is only a cache, design:
+
+```text
+Redis failure
+ ↓
+MongoDB fallback
+```
+
+The endpoint should remain functional if your requirements allow it.
+
+---
+
+# Drill 2 — MongoDB Failure
+
+Make MongoDB unavailable.
+
+Observe:
+
+```text
+GET /resources/:id
+```
+
+The application should report an appropriate error rather than pretending the resource exists.
+
+---
+
+# Drill 3 — PostgreSQL Failure
+
+Make PostgreSQL unavailable.
+
+Determine which endpoints depend on it.
+
+Document:
+
+```text
+Dependency
+Impact
+Error response
+Recovery
+```
+
+---
+
+# Drill 4 — Cache Staleness
+
+Create:
+
+```text
+MongoDB:
+price = 1000
+
+Redis:
+price = 1000
+```
+
+Update MongoDB:
+
+```text
+price = 1200
+```
+
+Don't invalidate Redis.
+
+Observe stale data.
+
+Then implement proper invalidation.
+
+---
+
+# Drill 5 — Cache Stampede
+
+Make a popular cache key expire.
+
+Generate concurrent requests.
+
+Observe database load.
+
+Then experiment with one mitigation strategy.
+
+---
+
+# Drill 6 — Unbounded MongoDB Array
+
+Create a deliberately bad document model with a growing array.
+
+Explain why it becomes problematic.
+
+Redesign it using separate documents/references.
+
+---
+
+# Drill 7 — Bad MongoDB Index
+
+Create an index that doesn't match the query workload.
+
+Use:
+
+```text
+explain()
+```
+
+to investigate.
+
+Then remove/rework it.
+
+---
+
+# Drill 8 — Duplicate Source of Truth
+
+Intentionally store a value in:
+
+```text
+PostgreSQL
+MongoDB
+Redis
+```
+
+with conflicting values.
+
+Then answer:
+
+> Which value is authoritative?
+
+Use this to demonstrate why ownership must be explicit.
+
+---
+
+# CHAPTER 28 — FINAL REVIEW & ENGINEERING ASSESSMENT
+
+At the end of V05, you should understand the following.
+
+---
+
+# NoSQL Fundamentals
+
+You should be able to explain:
+
+> Why NoSQL databases exist even though relational databases remain extremely powerful.
+
+---
+
+# MongoDB
+
+Understand:
+
+```text
+Server
+Database
+Collection
+Document
+Field
+BSON
+ObjectId
+```
+
+---
+
+# MongoDB Queries
+
+Be comfortable with:
+
+```text
+insertOne
+insertMany
+find
+updateOne
+deleteOne
+projection
+comparison operators
+logical operators
+array queries
+nested fields
+```
+
+---
+
+# MongoDB Modeling
+
+Understand:
+
+```text
+Embedding
+Referencing
+One-to-one
+One-to-few
+One-to-many
+Unbounded arrays
+Access-pattern-driven modeling
+```
+
+---
+
+# MongoDB Aggregation
+
+Understand:
+
+```text
+$match
+$group
+$sort
+$limit
+$project
+$unwind
+$lookup
+```
+
+and the mental model:
+
+```text
+Documents
+ ↓
+Stage
+ ↓
+Stage
+ ↓
+Stage
+ ↓
+Result
+```
+
+---
+
+# MongoDB Transactions
+
+Understand:
+
+```text
+Single-document atomicity
++
+Multi-document transactions
+```
+
+and why good modeling can reduce transaction complexity.
+
+---
+
+# MongoDB Indexes
+
+Understand:
+
+```text
+Single-field indexes
+Compound indexes
+Query patterns
+Explain plans
+Index trade-offs
+```
+
+---
+
+# Redis
+
+Understand:
+
+```text
+Key
+Value
+Memory
+TTL
+Expiration
+```
+
+and:
+
+```text
+String
+Hash
+List
+Set
+Sorted Set
+Stream
+```
+
+at a practical level.
+
+---
+
+# Caching
+
+You should be able to explain:
+
+```text
+Cache hit
+Cache miss
+Cache-aside
+TTL
+Invalidation
+Stale data
+Cache stampede
+```
+
+---
+
+# Redis Applications
+
+Understand how Redis can support:
+
+```text
+Caching
+Sessions
+Counters
+Rate limiting
+Temporary state
+Queues/streams
+```
+
+---
+
+# Polyglot Persistence
+
+Understand:
+
+```text
+One application
++
+Multiple databases
+```
+
+and the additional complexity that introduces.
+
+---
+
+# Database Selection
+
+Given a requirement, you should be able to reason:
+
+```text
+What data?
+What access pattern?
+What consistency?
+What latency?
+What scale?
+What operational cost?
+```
+
+before selecting a database.
+
+---
+
+# FINAL FEYNMAN TEST
+
+Close your notes.
+
+Explain these without looking anything up.
+
+---
+
+## Question 1
+
+Why do document databases exist?
+
+---
+
+## Question 2
+
+What is the difference between:
+
+```text
+PostgreSQL row
+```
+
+and:
+
+```text
+MongoDB document
+```
+
+---
+
+## Question 3
+
+Why can MongoDB have flexible schema but still require disciplined data modeling?
+
+---
+
+## Question 4
+
+When would you embed a document?
+
+---
+
+## Question 5
+
+When would you reference another document?
+
+---
+
+## Question 6
+
+Why are unbounded arrays dangerous?
+
+---
+
+## Question 7
+
+What is a MongoDB aggregation pipeline?
+
+---
+
+## Question 8
+
+Why do MongoDB indexes improve some queries but add write/storage cost?
+
+---
+
+## Question 9
+
+What is Redis fundamentally designed to do well?
+
+---
+
+## Question 10
+
+Why is Redis commonly used as a cache instead of the source of truth?
+
+---
+
+## Question 11
+
+Explain cache-aside.
+
+---
+
+## Question 12
+
+What happens when a cached value becomes stale?
+
+---
+
+## Question 13
+
+What is cache stampede?
+
+---
+
+## Question 14
+
+Why does adding Redis increase system complexity?
+
+---
+
+## Question 15
+
+What does polyglot persistence mean?
+
+---
+
+## Question 16
+
+Imagine this system:
+
+```text
+Users
+Orders
+Product Catalog
+Session
+Rate Limiting
+```
+
+Which database would you consider for each and why?
+
+Don't answer based on:
+
+> "MongoDB is faster."
+
+Answer based on:
+
+```text
+data model
+access pattern
+consistency
+operational requirements
+```
+
+---
+
+# SPACED REPETITION
+
+## Same Day
+
+Explain:
+
+```text
+Embedding
+vs
+Referencing
+```
+
+and:
+
+```text
+Cache
+vs
+Source of Truth
+```
+
+---
+
+## Next Day
+
+Build a MongoDB document model for:
+
+```text
+User
+Profile
+Addresses
+Orders
+```
+
+without looking at notes.
+
+---
+
+## After 3–4 Days
+
+Design:
+
+```text
+Redis cache
+```
+
+for an API endpoint.
+
+Explain:
+
+```text
+key
+TTL
+invalidation
+fallback
+```
+
+---
+
+## After 1 Week
+
+Given:
+
+> "Our API is slow because the same expensive product query is executed thousands of times."
+
+Design a solution.
+
+Explain:
+
+```text
+database
+cache
+cache key
+TTL
+invalidation
+failure behavior
+```
+
+---
+
+# ENGINEERING DECISION RECORDS
+
+Create at least five decisions.
+
+Example:
+
+```text
+Decision:
+Use Redis for product caching.
+
+Context:
+Product reads are frequent and product updates are relatively infrequent.
+
+Source of truth:
+PostgreSQL/MongoDB.
+
+Cache:
+Redis.
+
+Invalidation:
+Delete cache after successful source update.
+
+Failure behavior:
+Fallback to source database.
+
+Trade-off:
+Additional infrastructure and stale-cache risk.
+```
+
+---
+
+# V05 COMPLETION CRITERIA
+
+You are done when you can:
+
+* Explain why NoSQL databases exist.
+* Compare relational, document and key-value models.
+* Explain MongoDB's architecture.
+* Work with collections and documents.
+* Understand BSON and ObjectId.
+* Perform MongoDB CRUD.
+* Use common query operators.
+* Query nested documents and arrays.
+* Design documents based on access patterns.
+* Decide between embedding and referencing.
+* Recognize unbounded-array problems.
+* Apply schema validation.
+* Design MongoDB indexes.
+* Use MongoDB `explain()`.
+* Build aggregation pipelines.
+* Understand MongoDB transactions.
+* Integrate MongoDB with Node.js.
+* Integrate MongoDB with FastAPI.
+* Explain Redis's core model.
+* Use Redis data structures at a practical level.
+* Understand TTL and expiration.
+* Implement cache-aside.
+* Handle cache invalidation.
+* Understand cache stampede.
+* Design Redis-backed sessions.
+* Design basic rate limiting.
+* Understand Redis failure behavior.
+* Compare PostgreSQL, MongoDB and Redis.
+* Explain polyglot persistence.
+* Identify sources of truth.
+* Make evidence-based database selection decisions.
+* Complete the Polyglot Backend Data Layer.
+* Complete the failure injection drills.
+
+---
+
+# V05 FINAL MENTAL MODEL
+
+The most important concept in this entire volume is:
+
+```text
+                APPLICATION
+                     │
+                     ▼
+              ACCESS PATTERNS
+                     │
+        ┌────────────┼────────────┐
+        ▼            ▼            ▼
+   PostgreSQL     MongoDB       Redis
+        │            │            │
+ Structured      Document       Fast
+ relational      flexible      temporary/
+ transactional    data         cached state
+        │            │            │
+        └────────────┼────────────┘
+                     ▼
+              SYSTEM DESIGN
+                     │
+                     ▼
+              SOURCE OF TRUTH
+                     │
+                     ▼
+             CONSISTENCY MODEL
+                     │
+                     ▼
+              FAILURE HANDLING
+                     │
+                     ▼
+             OPERATIONAL COST
+```
+
+The database is not selected first.
+
+The **requirements come first**.
+
+Then:
+
+```text
+Requirement
+    ↓
+Data model
+    ↓
+Access pattern
+    ↓
+Database choice
+    ↓
+Schema
+    ↓
+Indexes
+    ↓
+Application integration
+    ↓
+Caching
+    ↓
+Failure handling
+    ↓
+Operations
+```
+
+That is the database engineering mindset.
+
+---
+
+# V05 → V06 TRANSITION
+
+You now have a strong foundation across:
+
+```text
+V01
+Database Fundamentals
+        ↓
+V02
+PostgreSQL + SQL
+        ↓
+V03
+Query Engineering
+        ↓
+V04
+PostgreSQL Internals + Production
+        ↓
+V05
+MongoDB + Redis + Polyglot Persistence
+```
+
+The final database volume will connect everything to the direction of the **DevOps + AI Engineering roadmap**.
+
+# DB V06 — AI-Native Databases & Database DevOps
+
+We will cover:
+
+```text
+Database + AI Architecture
+        ↓
+Embeddings & Vector Data
+        ↓
+PostgreSQL + pgvector
+        ↓
+Vector Search
+        ↓
+Metadata Filtering
+        ↓
+Hybrid Retrieval
+        ↓
+RAG Database Architecture
+        ↓
+MongoDB in AI Applications
+        ↓
+Redis in AI Applications
+        ↓
+Caching LLM Responses
+        ↓
+Conversation / Session State
+        ↓
+Database Migrations
+        ↓
+Database CI/CD
+        ↓
+Dockerized Databases
+        ↓
+Managed Cloud Databases
+        ↓
+Infrastructure as Code
+        ↓
+Database Security
+        ↓
+Observability
+        ↓
+Backup & Recovery Automation
+        ↓
+Production Database Architecture
+```
+
+And most importantly, DB V06 will connect directly to:
+
+```text
+DevOps V09
+AI & LLM Fundamentals
+        ↓
+DevOps V10
+Embeddings + RAG
+        ↓
+DevOps V11
+AI Application Engineering
+        ↓
+Flagship Project
+        ↓
+Docker
+CI/CD
+AWS
+Terraform
+Kubernetes
+LLMOps
+SRE
+```
+
+So DB V06 becomes the bridge between **database engineering** and the larger **AI + DevOps engineering system**.
+
+**End of DB V05.**

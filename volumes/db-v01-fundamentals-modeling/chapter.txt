@@ -1,0 +1,2919 @@
+# DB V01 — Database Fundamentals & Data Modeling
+
+## Database Engineering Roadmap — Volume 01
+
+---
+
+# 0. Volume Purpose
+
+This volume establishes the **mental model of databases** before learning PostgreSQL, MongoDB, Redis, vector databases, or database DevOps.
+
+The goal is not to memorize SQL.
+
+The goal is to understand:
+
+> **What problem does a database solve?**
+
+> **How is data represented and organized?**
+
+> **How do we design data correctly?**
+
+> **Why do databases behave differently from ordinary files?**
+
+> **How do relationships, constraints, transactions, indexes, and concurrency work?**
+
+By the end of this volume, you should be able to look at a real application and design a reasonable database before writing the first SQL query.
+
+---
+
+# 1. Prerequisites
+
+You do not need previous database knowledge.
+
+However, you should be comfortable with:
+
+* Basic programming concepts
+* Variables
+* Objects/records
+* Arrays/lists
+* Basic file systems
+* Basic computer architecture
+* Basic networking concepts
+* Basic backend/application concepts
+
+The DevOps + AI roadmap already provides much of this foundation.
+
+---
+
+# 2. Learning Philosophy
+
+We will learn every major concept using this progression:
+
+### Understand
+
+What is it?
+
+### Explain
+
+Why does it exist?
+
+### Model
+
+How does it fit into a larger system?
+
+### Build
+
+Use it in a lab.
+
+### Break
+
+Create mistakes/failures deliberately.
+
+### Debug
+
+Understand why it failed.
+
+### Explain Again
+
+Use the Feynman Technique.
+
+The objective is **engineering understanding**, not memorization.
+
+---
+
+# 3. Volume Structure
+
+## Chapter 01 — Data, Information & Databases
+
+## Chapter 02 — Why Databases Exist
+
+## Chapter 03 — Database Types & Data Models
+
+## Chapter 04 — Relational Database Fundamentals
+
+## Chapter 05 — Tables, Rows, Columns & Data Types
+
+## Chapter 06 — Keys & Constraints
+
+## Chapter 07 — Relationships & Cardinality
+
+## Chapter 08 — Entity-Relationship Modeling
+
+## Chapter 09 — Database Schema Design
+
+## Chapter 10 — Normalization
+
+## Chapter 11 — Denormalization
+
+## Chapter 12 — Transactions & ACID
+
+## Chapter 13 — Concurrency Fundamentals
+
+## Chapter 14 — Index Fundamentals
+
+## Chapter 15 — Data Integrity & Validation
+
+## Chapter 16 — Database Security Fundamentals
+
+## Chapter 17 — Backup, Recovery & Durability Fundamentals
+
+## Chapter 18 — Application ↔ Database Architecture
+
+## Chapter 19 — Database Design Workflow
+
+## Chapter 20 — Database Failure & Design Mistakes
+
+## Chapter 21 — Mini-Project: Real-World Database Design
+
+## Chapter 22 — Final Review, Feynman Test & Engineering Assessment
+
+---
+
+# CHAPTER 01 — DATA, INFORMATION & DATABASES
+
+## 1.1 What Is Data?
+
+Data is a representation of some fact, observation, measurement, event, or value.
+
+Examples:
+
+```text
+22
+Sri
+14000
+2026-09-27
+true
+Coimbatore
+```
+
+Individually, these values may not tell us much.
+
+For example:
+
+```text
+22
+```
+
+is just a value.
+
+When we add context:
+
+```text
+Age = 22
+```
+
+it becomes meaningful information.
+
+---
+
+## 1.2 Data vs Information
+
+### Data
+
+Raw values.
+
+### Information
+
+Data placed into a meaningful context.
+
+Example:
+
+```text
+Data:
+
+22
+7.1
+2026
+```
+
+Information:
+
+```text
+Age: 22
+CGPA: 7.1
+Graduation Year: 2026
+```
+
+The database usually stores the **data**, while the application gives that data meaning through structure and context.
+
+---
+
+# 1.3 What Is a Database?
+
+A database is an organized collection of data designed so that the data can be stored, accessed, modified, and managed efficiently.
+
+A database is **not simply an SSD or hard disk**.
+
+The physical storage device is hardware.
+
+The database is a logical organization of data implemented using software.
+
+Think:
+
+```text
+Hardware
+    ↓
+Storage
+    ↓
+Database software
+    ↓
+Database
+    ↓
+Tables / documents / indexes / metadata
+    ↓
+Application
+```
+
+---
+
+# 1.4 What Is a DBMS?
+
+DBMS = **Database Management System**
+
+It is the software responsible for managing databases.
+
+Examples:
+
+* PostgreSQL
+* MySQL
+* MariaDB
+* MongoDB
+* Microsoft SQL Server
+* Oracle Database
+* Redis
+
+A DBMS provides mechanisms for:
+
+* storing data
+* retrieving data
+* modifying data
+* enforcing constraints
+* handling concurrent users
+* managing transactions
+* recovering from failures
+* controlling access
+* optimizing queries
+
+---
+
+# 1.5 Database vs DBMS
+
+Think about a library.
+
+### Database
+
+The actual collection of books and their organized information.
+
+### DBMS
+
+The system that manages:
+
+* where books are stored
+* who can access them
+* how they are found
+* how new books are added
+* how books are removed
+* how multiple people use the library simultaneously
+
+---
+
+# 1.6 First-Principles Question
+
+Ask:
+
+> Why not just store everything in files?
+
+This question leads directly to the next chapter.
+
+---
+
+# CHAPTER 02 — WHY DATABASES EXIST
+
+Before databases became common, applications could simply store information in files.
+
+For example:
+
+```text
+users.txt
+products.txt
+orders.txt
+payments.txt
+```
+
+This works for small systems.
+
+But problems appear as the system grows.
+
+---
+
+# 2.1 Problem: Searching
+
+Imagine:
+
+```text
+1 million users
+```
+
+stored in a plain text file.
+
+Finding one specific user efficiently becomes difficult.
+
+---
+
+# 2.2 Problem: Updating
+
+Suppose the same customer information appears in:
+
+```text
+orders.txt
+payments.txt
+customers.txt
+support.txt
+```
+
+The customer's phone number changes.
+
+Now multiple files may need updating.
+
+What happens if one update is missed?
+
+You get inconsistent data.
+
+---
+
+# 2.3 Problem: Relationships
+
+Real applications have relationships.
+
+For example:
+
+```text
+Customer
+   ↓
+Orders
+   ↓
+Products
+   ↓
+Payments
+```
+
+Representing and maintaining these relationships using plain files becomes increasingly difficult.
+
+---
+
+# 2.4 Problem: Concurrent Access
+
+Imagine:
+
+```text
+User A → withdraw ₹500
+User B → withdraw ₹500
+```
+
+Both access the same account at almost the same time.
+
+The system must prevent incorrect balances.
+
+This requires controlled concurrency.
+
+---
+
+# 2.5 Problem: Failure
+
+What happens if the server crashes halfway through an operation?
+
+For example:
+
+```text
+Account A: -₹1000
+Account B: +₹1000
+```
+
+If the system crashes after the first operation but before the second:
+
+```text
+A = -₹1000
+B = unchanged
+```
+
+The data becomes inconsistent.
+
+Databases provide transaction and recovery mechanisms to handle such situations.
+
+---
+
+# 2.6 Problem: Security
+
+A real application needs:
+
+* authentication
+* authorization
+* roles
+* permissions
+* controlled access
+* auditing
+
+A database system provides mechanisms to enforce these at the data layer.
+
+---
+
+# 2.7 Why Databases Exist
+
+The core reason is:
+
+> **Reliable management of structured data at scale and under concurrent access.**
+
+Databases solve multiple engineering problems simultaneously:
+
+```text
+Storage
+Retrieval
+Organization
+Integrity
+Relationships
+Concurrency
+Transactions
+Security
+Recovery
+Performance
+```
+
+---
+
+# CHAPTER 03 — DATABASE TYPES & DATA MODELS
+
+Not every problem requires the same type of database.
+
+---
+
+# 3.1 Relational Databases
+
+Data is organized primarily into related tables.
+
+Examples:
+
+* PostgreSQL
+* MySQL
+* SQL Server
+* Oracle
+
+Typical structure:
+
+```text
+customers
+orders
+products
+payments
+```
+
+Relationships connect them.
+
+---
+
+# 3.2 Document Databases
+
+Data is represented as documents.
+
+Example:
+
+```json
+{
+  "name": "Sri",
+  "age": 22,
+  "skills": [
+    "JavaScript",
+    "Python",
+    "React"
+  ]
+}
+```
+
+MongoDB is an example.
+
+---
+
+# 3.3 Key-Value Databases
+
+Data is primarily represented as:
+
+```text
+key → value
+```
+
+Example:
+
+```text
+user:123 → session-data
+```
+
+Redis is commonly used this way, although Redis supports additional data structures.
+
+---
+
+# 3.4 Column-Oriented Databases
+
+Designed around analytical workloads where large numbers of rows may be processed.
+
+Examples include systems such as:
+
+* ClickHouse
+* BigQuery
+* Snowflake
+
+We don't need deep specialization here yet.
+
+---
+
+# 3.5 Graph Databases
+
+Designed around relationships between entities.
+
+Example:
+
+```text
+Person
+ ↓
+FRIEND_OF
+ ↓
+Person
+```
+
+Useful in certain relationship-heavy domains.
+
+Again, this volume only needs conceptual understanding.
+
+---
+
+# 3.6 Vector Databases / Vector Stores
+
+Important for our later AI roadmap.
+
+They store vector representations such as embeddings.
+
+Example:
+
+```text
+Document
+    ↓
+Embedding
+    ↓
+[0.13, -0.82, 0.44, ...]
+```
+
+These allow semantic similarity searches.
+
+This becomes important in:
+
+**AI V10 — Embeddings, Vector Search & RAG**
+
+and later:
+
+**DB V06 — AI-Native Databases & Database DevOps**
+
+---
+
+# 3.7 Data Model
+
+A data model describes how data is represented and related.
+
+Examples:
+
+```text
+Relational
+Document
+Key-Value
+Graph
+```
+
+Important distinction:
+
+> **Database type** and **data model** are related concepts but shouldn't be treated as identical terminology.
+
+---
+
+# CHAPTER 04 — RELATIONAL DATABASE FUNDAMENTALS
+
+The relational model is the foundation of our PostgreSQL journey.
+
+---
+
+# 4.1 Relation
+
+In practical SQL terminology, we usually work with a table.
+
+Example:
+
+```text
+students
+```
+
+| id | name  | age |
+| -: | ----- | --: |
+|  1 | Arun  |  21 |
+|  2 | Priya |  22 |
+|  3 | Kumar |  20 |
+
+Conceptually, the relational model provides a mathematical foundation underneath tables.
+
+We don't need to become mathematicians.
+
+We need to understand the engineering consequences.
+
+---
+
+# 4.2 Row
+
+A row represents one record/tuple.
+
+```text
+1 | Arun | 21
+```
+
+---
+
+# 4.3 Column
+
+A column represents an attribute.
+
+```text
+id
+name
+age
+```
+
+---
+
+# 4.4 Schema
+
+A schema describes the structure of the data.
+
+For example:
+
+```text
+students
+
+id      INTEGER
+name    VARCHAR
+age     INTEGER
+```
+
+A schema answers:
+
+> What data exists and how is it structured?
+
+---
+
+# 4.5 Why Structure Matters
+
+Without structure:
+
+```text
+Sri,22,Coimbatore
+Arun,twenty,Chennai
+Priya,23
+```
+
+The system cannot reliably enforce meaning.
+
+With a schema:
+
+```text
+age INTEGER NOT NULL
+```
+
+the database can reject invalid values.
+
+This is one of the most important database principles:
+
+> **The database should protect data quality, not blindly trust the application.**
+
+---
+
+# CHAPTER 05 — TABLES, ROWS, COLUMNS & DATA TYPES
+
+Before designing relationships, understand what a table actually represents.
+
+---
+
+# 5.1 Choosing Columns
+
+Suppose we have:
+
+```text
+users
+```
+
+Possible columns:
+
+```text
+id
+name
+email
+phone
+created_at
+```
+
+Each column should represent a meaningful attribute.
+
+Avoid random dumping:
+
+```text
+extra1
+extra2
+misc
+data
+something
+```
+
+---
+
+# 5.2 Data Types
+
+Different values require different types.
+
+Examples:
+
+```text
+INTEGER
+BIGINT
+DECIMAL
+BOOLEAN
+TEXT
+VARCHAR
+DATE
+TIMESTAMP
+UUID
+```
+
+The exact types vary between database systems.
+
+We will learn PostgreSQL-specific details in DB V02.
+
+---
+
+# 5.3 Why Data Types Matter
+
+Consider:
+
+```text
+age = "22"
+```
+
+versus:
+
+```text
+age = 22
+```
+
+A number should generally be represented as a numeric type.
+
+Correct data types allow the database to:
+
+* validate values
+* compare correctly
+* sort correctly
+* perform calculations
+* store efficiently
+
+---
+
+# 5.4 NULL
+
+`NULL` means:
+
+> The value is absent/unknown/not provided.
+
+It does **not** mean:
+
+```text
+0
+```
+
+and it does not necessarily mean:
+
+```text
+""
+```
+
+Example:
+
+```text
+phone = NULL
+```
+
+means there is no phone value currently stored.
+
+NULL becomes extremely important when we study:
+
+* constraints
+* queries
+* joins
+* logic
+* application behavior
+
+---
+
+# CHAPTER 06 — KEYS & CONSTRAINTS
+
+This is one of the most important chapters.
+
+---
+
+# 6.1 What Is a Key?
+
+A key helps identify or relate records.
+
+---
+
+# 6.2 Primary Key
+
+A primary key uniquely identifies a row.
+
+Example:
+
+```text
+users
+
+id
+---
+1
+2
+3
+```
+
+We can say:
+
+```text
+id = 2
+```
+
+identifies one particular user.
+
+Properties:
+
+* unique
+* identifies a row
+* should not be NULL
+
+---
+
+# 6.3 Candidate Key
+
+A candidate key is an attribute or combination of attributes that could uniquely identify a record.
+
+For example:
+
+```text
+user_id
+email
+```
+
+could potentially be unique.
+
+One may be chosen as the primary key.
+
+---
+
+# 6.4 Natural vs Surrogate Keys
+
+### Natural key
+
+A real-world meaningful value.
+
+Example:
+
+```text
+email
+```
+
+### Surrogate key
+
+An artificial identifier.
+
+Example:
+
+```text
+id = 1042
+```
+
+Both have uses.
+
+We will learn how to choose appropriately.
+
+---
+
+# 6.5 Foreign Key
+
+A foreign key creates a relationship between tables.
+
+Example:
+
+```text
+customers
+
+id
+---
+1
+2
+3
+```
+
+```text
+orders
+
+id    customer_id
+---   -----------
+101       1
+102       1
+103       3
+```
+
+`customer_id` refers to:
+
+```text
+customers.id
+```
+
+This creates a relationship.
+
+---
+
+# 6.6 Constraints
+
+Constraints enforce rules.
+
+Common constraints:
+
+```text
+PRIMARY KEY
+FOREIGN KEY
+UNIQUE
+NOT NULL
+CHECK
+DEFAULT
+```
+
+Example:
+
+```text
+age >= 0
+```
+
+A `CHECK` constraint can enforce this rule.
+
+---
+
+# 6.7 Why Constraints Matter
+
+Without constraints:
+
+```text
+user_id = 999999
+```
+
+could reference a user who doesn't exist.
+
+With a foreign key:
+
+```text
+customer_id → customers.id
+```
+
+the database can reject invalid relationships.
+
+---
+
+# CHAPTER 07 — RELATIONSHIPS & CARDINALITY
+
+Applications are built from related entities.
+
+---
+
+# 7.1 One-to-One
+
+Example:
+
+```text
+User
+  ↓
+Profile
+```
+
+One user has one profile.
+
+---
+
+# 7.2 One-to-Many
+
+Very common.
+
+```text
+Customer
+   ↓
+Orders
+```
+
+One customer can have many orders.
+
+But:
+
+```text
+Order → one Customer
+```
+
+---
+
+# 7.3 Many-to-Many
+
+Example:
+
+```text
+Students ↔ Courses
+```
+
+A student can enroll in many courses.
+
+A course can have many students.
+
+We usually introduce an intermediate table:
+
+```text
+students
+courses
+enrollments
+```
+
+---
+
+# 7.4 Cardinality
+
+Cardinality describes how many records can participate in a relationship.
+
+Examples:
+
+```text
+1 : 1
+1 : N
+N : N
+```
+
+This becomes critical when designing schemas.
+
+---
+
+# CHAPTER 08 — ENTITY-RELATIONSHIP MODELING
+
+Before creating tables, model the real-world problem.
+
+---
+
+# 8.1 Entity
+
+An entity is something about which we store information.
+
+Example:
+
+```text
+Customer
+Product
+Order
+Payment
+```
+
+---
+
+# 8.2 Attribute
+
+An attribute describes an entity.
+
+Customer:
+
+```text
+id
+name
+email
+phone
+```
+
+---
+
+# 8.3 Relationship
+
+A relationship describes how entities interact.
+
+```text
+Customer
+   |
+places
+   |
+Order
+```
+
+---
+
+# 8.4 Example
+
+E-commerce system:
+
+```text
+Customer
+   |
+   | places
+   ↓
+Order
+   |
+   | contains
+   ↓
+Product
+```
+
+But an order can contain multiple products.
+
+Therefore we may need:
+
+```text
+orders
+order_items
+products
+```
+
+---
+
+# 8.5 Why ER Modeling Matters
+
+Without modeling first, developers often jump directly into:
+
+```sql
+CREATE TABLE ...
+```
+
+and discover later that the structure is wrong.
+
+Database engineering begins before SQL.
+
+---
+
+# CHAPTER 09 — DATABASE SCHEMA DESIGN
+
+Schema design means turning a real-world domain into a structured data model.
+
+---
+
+# 9.1 Start With the Domain
+
+Ask:
+
+> What are we storing?
+
+Example:
+
+Online store.
+
+Entities:
+
+```text
+Customer
+Product
+Order
+Payment
+Address
+```
+
+---
+
+# 9.2 Identify Attributes
+
+Customer:
+
+```text
+id
+name
+email
+phone
+```
+
+Product:
+
+```text
+id
+name
+price
+stock
+```
+
+---
+
+# 9.3 Identify Relationships
+
+```text
+Customer → Orders
+Order → Order Items
+Order Item → Product
+Order → Payment
+```
+
+---
+
+# 9.4 Identify Rules
+
+Examples:
+
+```text
+email must be unique
+price cannot be negative
+order must belong to a customer
+order item must reference a product
+```
+
+These rules become constraints.
+
+---
+
+# 9.5 Design Before Implementation
+
+The workflow should generally be:
+
+```text
+Problem
+ ↓
+Requirements
+ ↓
+Entities
+ ↓
+Attributes
+ ↓
+Relationships
+ ↓
+Constraints
+ ↓
+ER Model
+ ↓
+Schema
+ ↓
+Implementation
+```
+
+This workflow will become extremely important when we later design the database for the flagship project.
+
+---
+
+# CHAPTER 10 — NORMALIZATION
+
+Normalization is one of the most commonly misunderstood database concepts.
+
+Don't memorize normal forms first.
+
+Understand the problem.
+
+---
+
+# 10.1 The Problem
+
+Imagine:
+
+```text
+student_id
+student_name
+course1
+course2
+course3
+```
+
+This creates structural problems.
+
+What happens when a student takes:
+
+```text
+course4
+```
+
+Do we add another column?
+
+That doesn't scale.
+
+---
+
+# 10.2 Repeating Data
+
+Bad design:
+
+```text
+order_id
+customer_name
+customer_phone
+product1
+product2
+product3
+```
+
+The table mixes multiple concepts.
+
+Better:
+
+```text
+customers
+orders
+products
+order_items
+```
+
+---
+
+# 10.3 First Normal Form
+
+The simplified practical idea:
+
+> Store atomic values and avoid repeating groups.
+
+Instead of:
+
+```text
+skills = "Python, Java, JavaScript"
+```
+
+inside a relational column for a multi-valued relationship, model the relationship appropriately.
+
+---
+
+# 10.4 Second Normal Form
+
+The practical idea:
+
+> Non-key attributes should depend on the whole key.
+
+This becomes especially important with composite keys.
+
+---
+
+# 10.5 Third Normal Form
+
+The practical idea:
+
+> Non-key attributes should depend on the key, not on another non-key attribute.
+
+Example:
+
+```text
+employee_id
+employee_name
+department_id
+department_name
+```
+
+`department_name` depends on `department_id`, not directly on `employee_id`.
+
+So department information may belong in:
+
+```text
+departments
+```
+
+---
+
+# 10.6 Why Normalize?
+
+Normalization reduces:
+
+* duplicate data
+* update anomalies
+* insertion anomalies
+* deletion anomalies
+* inconsistency
+
+---
+
+# CHAPTER 11 — DENORMALIZATION
+
+Normalization is not an absolute law.
+
+Sometimes we intentionally duplicate data for performance or convenience.
+
+This is denormalization.
+
+---
+
+# 11.1 Example
+
+Instead of joining:
+
+```text
+orders
+customers
+```
+
+every time, a system might intentionally store:
+
+```text
+order_customer_name
+```
+
+inside an order snapshot.
+
+Why?
+
+Because the order may need to preserve the customer's name **as it was when the order happened**.
+
+---
+
+# 11.2 Another Example
+
+Analytics systems may duplicate or precompute data to reduce expensive joins.
+
+---
+
+# 11.3 Important Rule
+
+Do not think:
+
+> Normalization = good
+> Denormalization = bad
+
+Think:
+
+> **Normalization protects consistency.**
+
+> **Denormalization can improve access patterns/performance when deliberately designed.**
+
+This distinction becomes important in production systems.
+
+---
+
+# CHAPTER 12 — TRANSACTIONS & ACID
+
+This is one of the most important foundations for backend engineering.
+
+---
+
+# 12.1 What Is a Transaction?
+
+A transaction is a group of database operations treated as one logical unit of work.
+
+Example:
+
+Bank transfer:
+
+```text
+Account A - ₹1000
+Account B + ₹1000
+```
+
+Both operations belong to one transaction.
+
+---
+
+# 12.2 Atomicity
+
+Either:
+
+```text
+everything succeeds
+```
+
+or:
+
+```text
+nothing happens
+```
+
+---
+
+# 12.3 Consistency
+
+The transaction should move the database from one valid state to another valid state.
+
+---
+
+# 12.4 Isolation
+
+Concurrent transactions should not incorrectly interfere with each other.
+
+---
+
+# 12.5 Durability
+
+Once a committed transaction is accepted as durable, its changes should survive appropriate failures.
+
+---
+
+# 12.6 ACID
+
+```text
+A → Atomicity
+C → Consistency
+I → Isolation
+D → Durability
+```
+
+Don't memorize the acronym only.
+
+Understand the engineering problem each property addresses.
+
+---
+
+# CHAPTER 13 — CONCURRENCY FUNDAMENTALS
+
+Modern databases are rarely used by one person.
+
+Imagine:
+
+```text
+1000 users
+     ↓
+Application
+     ↓
+Database
+```
+
+Many requests may access the same records simultaneously.
+
+---
+
+# 13.1 Race Condition
+
+Suppose:
+
+```text
+Stock = 1
+```
+
+Two users buy the last item simultaneously.
+
+Without proper concurrency handling:
+
+```text
+User A sees 1
+User B sees 1
+
+A buys
+B buys
+
+Stock becomes -1
+```
+
+The database/application must prevent invalid states.
+
+---
+
+# 13.2 Concurrency Problems
+
+We will understand concepts such as:
+
+* lost updates
+* dirty reads
+* non-repeatable reads
+* phantom reads
+* locking
+* isolation levels
+
+We will not yet dive deeply into PostgreSQL's internal implementation.
+
+That belongs in DB V04.
+
+---
+
+# 13.3 Why This Matters for Backend Engineering
+
+Every backend developer eventually encounters:
+
+```text
+Request A
+Request B
+Request C
+   ↓
+same database
+```
+
+Database concurrency is therefore an application engineering problem, not merely a DBA topic.
+
+---
+
+# CHAPTER 14 — INDEX FUNDAMENTALS
+
+An index helps the database find data more efficiently.
+
+---
+
+# 14.1 Without an Index
+
+Suppose:
+
+```text
+1,000,000 users
+```
+
+and we search:
+
+```text
+email = "user@example.com"
+```
+
+Without a suitable index, the database may need to inspect many rows.
+
+---
+
+# 14.2 With an Index
+
+The database maintains additional structures that help locate matching rows faster.
+
+Conceptually:
+
+```text
+Query
+ ↓
+Index
+ ↓
+Relevant rows
+```
+
+---
+
+# 14.3 Indexes Are Not Free
+
+An index consumes:
+
+* storage
+* memory/cache resources
+* write/update overhead
+* maintenance work
+
+Therefore:
+
+> **More indexes does not automatically mean better performance.**
+
+---
+
+# 14.4 Core Principle
+
+Indexes should be designed around:
+
+> **Actual query patterns.**
+
+Not:
+
+> "Put an index on every column."
+
+We'll study actual PostgreSQL index types and query planning in later volumes.
+
+---
+
+# CHAPTER 15 — DATA INTEGRITY & VALIDATION
+
+Data integrity means keeping data correct and consistent.
+
+---
+
+# 15.1 Entity Integrity
+
+Each entity should be uniquely identifiable.
+
+Example:
+
+```text
+PRIMARY KEY
+```
+
+---
+
+# 15.2 Referential Integrity
+
+Relationships should reference valid entities.
+
+Example:
+
+```text
+orders.customer_id
+        ↓
+customers.id
+```
+
+---
+
+# 15.3 Domain Integrity
+
+Values should satisfy valid rules.
+
+Examples:
+
+```text
+price >= 0
+age >= 0
+status IN (...)
+```
+
+---
+
+# 15.4 Application Validation vs Database Validation
+
+Application:
+
+```text
+if price < 0:
+    reject
+```
+
+Database:
+
+```text
+CHECK (price >= 0)
+```
+
+We generally want important invariants protected at the database layer as well.
+
+Why?
+
+Because applications can contain bugs.
+
+The database should be a final line of defense.
+
+---
+
+# CHAPTER 16 — DATABASE SECURITY FUNDAMENTALS
+
+Security starts at the database layer.
+
+---
+
+# 16.1 Authentication
+
+Who are you?
+
+---
+
+# 16.2 Authorization
+
+What are you allowed to do?
+
+---
+
+# 16.3 Least Privilege
+
+A service should receive only the permissions it actually needs.
+
+For example:
+
+```text
+Read-only service
+```
+
+should not automatically have:
+
+```text
+DROP DATABASE
+```
+
+permissions.
+
+---
+
+# 16.4 Secrets
+
+Never hardcode:
+
+```text
+DB_PASSWORD=123456
+```
+
+inside source code.
+
+Use appropriate secret/configuration mechanisms.
+
+---
+
+# 16.5 SQL Injection
+
+Never construct queries unsafely using user input.
+
+Conceptually dangerous:
+
+```text
+"SELECT * FROM users WHERE name = '" + userInput + "'"
+```
+
+Use parameterized queries/prepared statements.
+
+We'll practice this later.
+
+---
+
+# 16.6 Database Security Layers
+
+Think:
+
+```text
+Network
+ ↓
+Database authentication
+ ↓
+Authorization
+ ↓
+Application permissions
+ ↓
+Query safety
+ ↓
+Data protection
+ ↓
+Auditing/monitoring
+```
+
+Security will become much deeper in:
+
+**DB V04 and DB V06**
+
+and in:
+
+**DevOps V17 — DevSecOps & Production Security**
+
+---
+
+# CHAPTER 17 — BACKUP, RECOVERY & DURABILITY FUNDAMENTALS
+
+A database is not safe merely because it is running.
+
+---
+
+# 17.1 Backup
+
+A backup is a recoverable copy of data.
+
+---
+
+# 17.2 Recovery
+
+Recovery means restoring the system/data after a failure.
+
+---
+
+# 17.3 Common Failure Scenarios
+
+```text
+Accidental DELETE
+Database corruption
+Disk failure
+Server failure
+Human error
+Deployment mistake
+Security incident
+```
+
+---
+
+# 17.4 Backup ≠ Recovery
+
+Having a backup file doesn't prove you can recover.
+
+You need to test restoration.
+
+Therefore:
+
+> **A backup that has never been restored is an assumption, not a verified recovery mechanism.**
+
+---
+
+# 17.5 RPO & RTO
+
+Later production engineering will use:
+
+### RPO
+
+Recovery Point Objective.
+
+How much data loss can be tolerated?
+
+### RTO
+
+Recovery Time Objective.
+
+How long can recovery take?
+
+We only need the concepts here.
+
+They become important later with:
+
+* AWS
+* production databases
+* SRE
+* disaster recovery
+
+---
+
+# CHAPTER 18 — APPLICATION ↔ DATABASE ARCHITECTURE
+
+Now connect databases to your existing backend knowledge.
+
+Typical architecture:
+
+```text
+Client
+  ↓
+Frontend
+  ↓
+API
+  ↓
+Backend Service
+  ↓
+Database Driver / ORM
+  ↓
+Database
+```
+
+Example:
+
+```text
+React
+  ↓
+FastAPI
+  ↓
+SQLAlchemy / driver
+  ↓
+PostgreSQL
+```
+
+or:
+
+```text
+React
+  ↓
+Node.js / Express
+  ↓
+MongoDB driver / Mongoose
+  ↓
+MongoDB
+```
+
+---
+
+# 18.1 Why Not Let Frontend Access Database Directly?
+
+Because the backend provides:
+
+* authentication
+* authorization
+* validation
+* business logic
+* transaction boundaries
+* security
+* rate limiting
+* controlled access
+
+The normal architecture is:
+
+```text
+Frontend
+    ↓
+Backend
+    ↓
+Database
+```
+
+---
+
+# 18.2 Connection
+
+The application communicates with the database through a driver/client.
+
+Examples:
+
+```text
+Python → PostgreSQL
+Node.js → PostgreSQL
+Node.js → MongoDB
+Python → Redis
+```
+
+We will implement these in later volumes.
+
+---
+
+# 18.3 Connection Pooling
+
+Opening a completely new database connection for every request can be expensive.
+
+A connection pool maintains reusable connections.
+
+Conceptually:
+
+```text
+Application
+     ↓
+Connection Pool
+ ┌───┼───┐
+ ↓   ↓   ↓
+DB connections
+     ↓
+Database
+```
+
+This becomes important when we study backend performance and production systems.
+
+---
+
+# CHAPTER 19 — DATABASE DESIGN WORKFLOW
+
+This chapter turns everything into a repeatable engineering process.
+
+---
+
+# Step 1 — Understand the Problem
+
+Don't start with:
+
+```sql
+CREATE TABLE
+```
+
+Start with:
+
+> What problem are we solving?
+
+---
+
+# Step 2 — Identify Entities
+
+Example:
+
+Food delivery system:
+
+```text
+Customer
+Restaurant
+Food
+Order
+Payment
+Delivery
+```
+
+---
+
+# Step 3 — Identify Attributes
+
+Customer:
+
+```text
+id
+name
+phone
+email
+```
+
+---
+
+# Step 4 — Identify Relationships
+
+```text
+Customer → Order
+Restaurant → Food
+Order → Order Items
+Order → Payment
+Order → Delivery
+```
+
+---
+
+# Step 5 — Define Constraints
+
+Examples:
+
+```text
+email UNIQUE
+price >= 0
+order.customer_id must exist
+```
+
+---
+
+# Step 6 — Normalize
+
+Remove unnecessary duplication and anomalies.
+
+---
+
+# Step 7 — Consider Access Patterns
+
+Ask:
+
+> How will the application query this data?
+
+Examples:
+
+```text
+Find customer by email
+Find orders by customer
+Find pending orders
+Find products by category
+```
+
+---
+
+# Step 8 — Consider Performance
+
+Only now think about indexes and other optimization mechanisms.
+
+---
+
+# Step 9 — Consider Security
+
+Who can:
+
+```text
+read?
+insert?
+update?
+delete?
+```
+
+---
+
+# Step 10 — Consider Recovery
+
+What happens if:
+
+```text
+server crashes?
+data is deleted?
+deployment fails?
+```
+
+---
+
+# Step 11 — Implement
+
+Only after the model is understood.
+
+---
+
+# Step 12 — Test
+
+Test:
+
+* valid data
+* invalid data
+* relationships
+* constraints
+* transactions
+* failure scenarios
+
+---
+
+# CHAPTER 20 — DATABASE FAILURE & DESIGN MISTAKES
+
+This chapter is about learning from bad designs.
+
+---
+
+# Mistake 1 — One Giant Table
+
+```text
+customer_name
+customer_phone
+product1
+product2
+product3
+payment_method
+delivery_person
+delivery_phone
+...
+```
+
+This becomes difficult to maintain.
+
+---
+
+# Mistake 2 — Everything as TEXT
+
+```text
+age TEXT
+price TEXT
+created_at TEXT
+```
+
+This destroys useful type guarantees.
+
+---
+
+# Mistake 3 — No Primary Key
+
+Without a reliable identifier, rows become difficult to reference safely.
+
+---
+
+# Mistake 4 — No Foreign Keys
+
+Relationships become unreliable.
+
+---
+
+# Mistake 5 — Too Many Indexes
+
+Writes and maintenance become more expensive.
+
+---
+
+# Mistake 6 — No Constraints
+
+The database accepts invalid states.
+
+---
+
+# Mistake 7 — Trusting Only Application Validation
+
+A second application or script could bypass those checks.
+
+---
+
+# Mistake 8 — Storing Repeated Data Everywhere
+
+Creates update anomalies and inconsistencies.
+
+---
+
+# Mistake 9 — Over-Normalizing
+
+A theoretically elegant design can become inconvenient or inefficient if it ignores real access patterns.
+
+---
+
+# Mistake 10 — Designing Without Queries
+
+A schema should support how the application actually uses the data.
+
+---
+
+# Mistake 11 — No Backup Strategy
+
+Production data should never depend on:
+
+> "The server is working, so we're safe."
+
+---
+
+# Mistake 12 — No Recovery Testing
+
+A backup isn't enough.
+
+You need:
+
+```text
+Backup
+ ↓
+Restore
+ ↓
+Verify
+```
+
+---
+
+# CHAPTER 21 — MINI-PROJECT
+
+# Project: Real-World Database Design Lab
+
+This is deliberately **not** a huge application.
+
+The purpose is to practice database thinking.
+
+We will design a realistic system from requirements without worrying about frontend/backend implementation yet.
+
+---
+
+## Project Domain
+
+### Online Course Platform
+
+This domain is intentionally different from your old LMS project.
+
+We are **not building an LMS application**.
+
+We are using a small domain only to practice database modeling.
+
+---
+
+# Requirements
+
+The platform needs to store:
+
+### Users
+
+* id
+* name
+* email
+* phone
+* created date
+
+### Courses
+
+* id
+* title
+* description
+* price
+* created date
+
+### Instructors
+
+* id
+* name
+* email
+
+### Course Categories
+
+* id
+* name
+
+### Enrollments
+
+* student
+* course
+* enrollment date
+* status
+
+### Lessons
+
+* course
+* title
+* sequence/order
+
+### Payments
+
+* enrollment
+* amount
+* status
+* payment date
+
+---
+
+# Project Tasks
+
+## Phase 1 — Requirement Analysis
+
+Write:
+
+```text
+Entities:
+?
+
+Attributes:
+?
+
+Relationships:
+?
+
+Business rules:
+?
+```
+
+---
+
+## Phase 2 — ER Model
+
+Create an ER diagram showing:
+
+```text
+User
+Course
+Instructor
+Category
+Enrollment
+Lesson
+Payment
+```
+
+and their relationships.
+
+---
+
+## Phase 3 — Cardinality
+
+Determine:
+
+```text
+User → Enrollment
+Course → Enrollment
+Course → Lesson
+Course → Instructor
+Course → Category
+Enrollment → Payment
+```
+
+For each relationship, determine whether it is:
+
+```text
+1:1
+1:N
+N:N
+```
+
+---
+
+## Phase 4 — Normalize
+
+Take an intentionally bad design:
+
+```text
+enrollment_id
+student_name
+student_email
+course_name
+course_price
+instructor_name
+category_name
+lesson1
+lesson2
+lesson3
+payment_status
+```
+
+Identify:
+
+* duplicate data
+* repeating groups
+* update anomalies
+* insertion anomalies
+* deletion anomalies
+
+Then redesign it.
+
+---
+
+## Phase 5 — Define Constraints
+
+For each table determine:
+
+* Primary key
+* Foreign keys
+* Unique constraints
+* NOT NULL fields
+* CHECK constraints
+* Default values
+
+---
+
+## Phase 6 — Design the Final Schema
+
+Produce a schema document such as:
+
+```text
+users
+courses
+instructors
+categories
+enrollments
+lessons
+payments
+```
+
+For each table document:
+
+```text
+Column
+Type
+Nullable?
+Default?
+Constraint?
+Purpose?
+```
+
+---
+
+## Phase 7 — Design Important Queries
+
+Without implementing SQL yet, write the requirements for queries such as:
+
+```text
+Find a user by email.
+
+Find all courses for a category.
+
+Find all courses taken by a student.
+
+Find all students enrolled in a course.
+
+Find lessons for a course in order.
+
+Find unpaid enrollments.
+
+Find total revenue by course.
+
+Find courses taught by an instructor.
+```
+
+This teaches an important principle:
+
+> **Schema design and query design influence each other.**
+
+---
+
+## Phase 8 — Failure Injection
+
+Intentionally propose invalid situations:
+
+```text
+Enrollment references nonexistent user.
+
+Payment references nonexistent enrollment.
+
+Duplicate user email.
+
+Negative course price.
+
+Lesson with invalid course.
+
+Enrollment without a required student.
+```
+
+For every case answer:
+
+> Which database rule should prevent this?
+
+---
+
+# CHAPTER 22 — FINAL REVIEW & ENGINEERING ASSESSMENT
+
+At the end of V01, you should be able to explain:
+
+### Fundamentals
+
+* What is data?
+* What is information?
+* What is a database?
+* What is a DBMS?
+* Why do databases exist?
+* Database vs DBMS
+* Database vs file storage
+
+### Data Models
+
+* Relational
+* Document
+* Key-value
+* Graph
+* Vector
+
+### Relational Concepts
+
+* Table
+* Row
+* Column
+* Schema
+* Data type
+
+### Keys
+
+* Primary key
+* Candidate key
+* Natural key
+* Surrogate key
+* Foreign key
+
+### Relationships
+
+* 1:1
+* 1:N
+* N:N
+* Cardinality
+
+### Design
+
+* Entity
+* Attribute
+* Relationship
+* ER diagram
+* Schema
+* Normalization
+* Denormalization
+
+### Reliability
+
+* Transactions
+* ACID
+* Concurrency
+* Integrity
+* Constraints
+
+### Performance
+
+* Why indexes exist
+* Why indexes aren't free
+* Query-driven indexing
+
+### Security
+
+* Authentication
+* Authorization
+* Least privilege
+* SQL injection
+* Secrets
+
+### Operations
+
+* Backup
+* Recovery
+* RPO
+* RTO
+* Restore testing
+
+### Architecture
+
+```text
+Frontend
+ ↓
+Backend
+ ↓
+Database
+```
+
+and:
+
+```text
+Application
+ ↓
+Connection Pool
+ ↓
+Database
+```
+
+---
+
+# Feynman Assessment
+
+Without looking at your notes, explain:
+
+> **"Why does a production application need a database instead of simply storing everything in JSON files?"**
+
+Then explain:
+
+> **"What would happen if databases had no transactions?"**
+
+Then:
+
+> **"Why do foreign keys exist?"**
+
+Then:
+
+> **"Why isn't adding an index to every column a good idea?"**
+
+Then:
+
+> **"Why can't we simply normalize everything as much as possible?"**
+
+If you can explain these clearly in your own words, you understand the foundation rather than merely recognizing terminology.
+
+---
+
+# Deliberate Practice
+
+Complete these exercises without copying solutions:
+
+### Exercise 01
+
+Design a database for:
+
+```text
+Hospital
+```
+
+Identify:
+
+* entities
+* attributes
+* relationships
+* constraints
+
+---
+
+### Exercise 02
+
+Design:
+
+```text
+Food Delivery
+```
+
+Identify:
+
+* Customer
+* Restaurant
+* Food
+* Order
+* Order Item
+* Payment
+* Delivery
+
+Determine the relationships.
+
+---
+
+### Exercise 03
+
+Find the problems in:
+
+```text
+orders
+----------------------------------
+order_id
+customer_name
+customer_phone
+product1
+product2
+product3
+product_price1
+product_price2
+product_price3
+payment_status
+```
+
+Redesign it.
+
+---
+
+### Exercise 04
+
+Explain why:
+
+```text
+Customer → Orders
+```
+
+is usually:
+
+```text
+1:N
+```
+
+rather than:
+
+```text
+N:N
+```
+
+---
+
+### Exercise 05
+
+Explain the difference between:
+
+```text
+PRIMARY KEY
+FOREIGN KEY
+UNIQUE
+NOT NULL
+CHECK
+```
+
+without looking at your notes.
+
+---
+
+# Engineering Notes to Maintain
+
+Create a section in your technical notes:
+
+```text
+database/
+└── fundamentals/
+    ├── database-mental-model.md
+    ├── relational-model.md
+    ├── keys-and-constraints.md
+    ├── relationships.md
+    ├── normalization.md
+    ├── transactions.md
+    ├── concurrency.md
+    ├── indexes.md
+    ├── security.md
+    ├── backup-recovery.md
+    └── schema-design.md
+```
+
+For every concept record:
+
+```text
+What is it?
+Why does it exist?
+How does it work?
+When is it useful?
+What problem does it solve?
+What can go wrong?
+Example
+```
+
+---
+
+# Spaced Repetition Schedule
+
+After learning each major section:
+
+### Same day
+
+Explain it without notes.
+
+### Next day
+
+Recall the concept from memory.
+
+### After 3–4 days
+
+Solve a related design problem.
+
+### After 1 week
+
+Explain it using a new example.
+
+### After several weeks
+
+Use it in PostgreSQL and connect it to DB V02.
+
+This prevents the classic:
+
+> "I understood it when I studied it, but I can't remember it now."
+
+---
+
+# V01 Completion Criteria
+
+Do not consider DB V01 complete merely because all chapters were read.
+
+You should be able to:
+
+* Explain why databases exist.
+* Explain database vs DBMS.
+* Identify appropriate high-level database models.
+* Design relational schemas.
+* Identify entities and attributes.
+* Model relationships.
+* Determine cardinality.
+* Choose appropriate keys.
+* Define constraints.
+* Explain normalization and denormalization.
+* Explain ACID.
+* Explain basic concurrency problems.
+* Explain why indexes exist.
+* Explain database security fundamentals.
+* Explain backup/recovery concepts.
+* Design an ER diagram from requirements.
+* Identify bad database designs.
+* Defend your design decisions.
+
+And most importantly:
+
+> **Given a real application requirement, you should be able to start designing its data model before writing SQL.**
+
+---
+
+# V01 Final Mental Model
+
+The entire volume should eventually compress into this:
+
+```text
+REAL-WORLD PROBLEM
+        ↓
+Requirements
+        ↓
+Entities
+        ↓
+Attributes
+        ↓
+Relationships
+        ↓
+Constraints
+        ↓
+ER MODEL
+        ↓
+SCHEMA
+        ↓
+NORMALIZATION
+        ↓
+ACCESS PATTERNS
+        ↓
+INDEX / PERFORMANCE CONSIDERATIONS
+        ↓
+TRANSACTIONS / CONCURRENCY
+        ↓
+SECURITY
+        ↓
+BACKUP / RECOVERY
+        ↓
+DATABASE
+        ↓
+APPLICATION
+```
+
+This is the foundation for everything that follows.
+
+---
+
+# V01 → V02 Transition
+
+Once V01 is completed, we move to:
+
+## DB V02 — PostgreSQL & SQL Foundations
+
+There we take the concepts from this volume and make them real.
+
+You will move from:
+
+> **"I understand what a database is."**
+
+to:
+
+> **"I can actually build and operate a PostgreSQL database."**
+
+Then V03 turns PostgreSQL querying into serious **SQL/query engineering**, V04 takes you into **production PostgreSQL**, V05 expands into **MongoDB + Redis**, and V06 connects databases directly with **AI + DevOps**.
+
+**End of DB V01.**

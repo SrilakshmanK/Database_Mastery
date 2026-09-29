@@ -1,0 +1,3941 @@
+# DB V04 — PostgreSQL Internals & Production Engineering
+
+## Database Engineering Roadmap — Volume 04
+
+---
+
+# 0. Volume Purpose
+
+DB V01 taught you **what databases are and how to design them**.
+
+DB V02 taught you **how to use PostgreSQL and SQL**.
+
+DB V03 taught you **how to reason about and engineer queries**.
+
+Now we go one level deeper.
+
+The goal of DB V04 is to understand:
+
+> **What is PostgreSQL actually doing underneath my application and SQL queries?**
+
+You do **not** need to become a PostgreSQL kernel developer.
+
+We will learn the internals that directly affect:
+
+* backend development
+* query performance
+* transactions
+* concurrency
+* storage
+* indexing
+* backups
+* recovery
+* deployment
+* monitoring
+* production troubleshooting
+* DevOps
+* cloud databases
+* Kubernetes/database operations later
+
+---
+
+# 1. Where V04 Fits
+
+```text
+DB V01
+Database Fundamentals
+        ↓
+DB V02
+PostgreSQL + SQL
+        ↓
+DB V03
+SQL + Query Engineering
+        ↓
+DB V04
+PostgreSQL Internals + Production
+        ↓
+DB V05
+MongoDB + Redis + Polyglot Persistence
+        ↓
+DB V06
+AI-Native Databases + Database DevOps
+```
+
+---
+
+# 2. The Core Mental Model
+
+By the end of this volume, you should be able to mentally trace:
+
+```text
+Application
+    ↓
+Connection / Pool
+    ↓
+PostgreSQL Backend Process
+    ↓
+SQL Parser
+    ↓
+Planner / Optimizer
+    ↓
+Executor
+    ↓
+Buffer / Cache
+    ↓
+Storage
+    ↓
+Tables / Indexes
+    ↓
+WAL
+    ↓
+Disk
+```
+
+And for transactions:
+
+```text
+Transaction
+    ↓
+MVCC
+    ↓
+Visibility
+    ↓
+Locks
+    ↓
+WAL
+    ↓
+Commit
+    ↓
+Durability
+```
+
+And for production:
+
+```text
+Application
+    ↓
+Database
+    ↓
+Metrics
+    ↓
+Logs
+    ↓
+Backups
+    ↓
+Recovery
+    ↓
+Failure handling
+```
+
+---
+
+# 3. What We Will NOT Do
+
+We will intentionally avoid spending weeks on obscure PostgreSQL internals that you are unlikely to use.
+
+We will NOT attempt to memorize:
+
+* PostgreSQL source code
+* every internal catalog
+* every index implementation detail
+* every obscure configuration parameter
+* every replication edge case
+* PostgreSQL extension development
+* database kernel programming
+
+Instead:
+
+> Learn the internals necessary to make good engineering decisions.
+
+---
+
+# 4. Chapters
+
+## Chapter 01 — PostgreSQL Architecture Mental Model
+
+## Chapter 02 — PostgreSQL Processes, Connections & Sessions
+
+## Chapter 03 — SQL Execution Pipeline
+
+## Chapter 04 — Memory, Shared Buffers & Caching
+
+## Chapter 05 — PostgreSQL Storage Architecture
+
+## Chapter 06 — Pages, Tuples & Table Storage
+
+## Chapter 07 — MVCC From First Principles
+
+## Chapter 08 — Transactions & Isolation Levels
+
+## Chapter 09 — Locks & Concurrency
+
+## Chapter 10 — WAL & Durability
+
+## Chapter 11 — Checkpoints & Crash Recovery
+
+## Chapter 12 — VACUUM, Dead Tuples & Table Bloat
+
+## Chapter 13 — PostgreSQL Index Internals
+
+## Chapter 14 — Query Planner & Statistics
+
+## Chapter 15 — Connection Pooling
+
+## Chapter 16 — PostgreSQL Configuration
+
+## Chapter 17 — Database Security & Access Control
+
+## Chapter 18 — Backup & Restore Engineering
+
+## Chapter 19 — Point-in-Time Recovery Concepts
+
+## Chapter 20 — Replication Fundamentals
+
+## Chapter 21 — High Availability Concepts
+
+## Chapter 22 — Partitioning
+
+## Chapter 23 — Database Monitoring & Observability
+
+## Chapter 24 — Production Troubleshooting
+
+## Chapter 25 — PostgreSQL Performance Engineering
+
+## Chapter 26 — PostgreSQL Deployment & Operations
+
+## Chapter 27 — Mini-Project: Production PostgreSQL Lab
+
+## Chapter 28 — Failure Injection & Recovery Drills
+
+## Chapter 29 — Final Review & Engineering Assessment
+
+---
+
+# CHAPTER 01 — POSTGRESQL ARCHITECTURE MENTAL MODEL
+
+Before learning individual components, understand the whole system.
+
+PostgreSQL is not simply:
+
+```text
+database = files
+```
+
+It is a running server system.
+
+Conceptually:
+
+```text
+                    PostgreSQL
+                        │
+             ┌──────────┴──────────┐
+             │                     │
+        Client Layer          Server Layer
+             │                     │
+       Application             Processes
+             │                     │
+         Driver                Planner
+             │                 Executor
+         Connection             Cache
+             │                 Storage
+             └──────────────┬──────┘
+                            │
+                           Disk
+```
+
+---
+
+# 1.1 PostgreSQL Server
+
+The PostgreSQL server manages:
+
+* connections
+* SQL execution
+* transactions
+* memory
+* storage
+* indexes
+* WAL
+* locks
+* background processes
+* recovery
+
+---
+
+# 1.2 Database
+
+A PostgreSQL server can contain multiple databases.
+
+```text
+PostgreSQL Server
+│
+├── database_a
+├── database_b
+└── database_c
+```
+
+Within a database:
+
+```text
+database
+   ↓
+schemas
+   ↓
+tables
+   ↓
+rows
+```
+
+---
+
+# 1.3 Why This Matters
+
+When debugging:
+
+> "My database is slow"
+
+is too vague.
+
+You need to ask:
+
+```text
+Connection problem?
+Query problem?
+Lock problem?
+CPU problem?
+Memory problem?
+Storage problem?
+WAL problem?
+Vacuum problem?
+Network problem?
+Application problem?
+```
+
+This is systems thinking applied to databases.
+
+---
+
+# CHAPTER 02 — POSTGRESQL PROCESSES, CONNECTIONS & SESSIONS
+
+One of the first production concepts is:
+
+> A database connection is not free.
+
+---
+
+# 2.1 Application Connection
+
+Your backend might do:
+
+```text
+Node.js / FastAPI
+      ↓
+PostgreSQL Driver
+      ↓
+TCP connection
+      ↓
+PostgreSQL
+```
+
+A connection represents a communication channel between application and database.
+
+---
+
+# 2.2 Connection Explosion
+
+Imagine:
+
+```text
+100 application instances
+×
+20 database connections
+=
+2000 connections
+```
+
+That can become a serious problem.
+
+The database has finite resources.
+
+---
+
+# 2.3 Connection Pool
+
+Instead:
+
+```text
+Application
+     ↓
+Connection Pool
+ ┌───┼───┐
+ C1  C2  C3
+ └───┼───┘
+     ↓
+ PostgreSQL
+```
+
+The application reuses connections.
+
+---
+
+# 2.4 Check Connections
+
+PostgreSQL provides:
+
+```sql
+SELECT
+    pid,
+    usename,
+    application_name,
+    client_addr,
+    state
+FROM pg_stat_activity;
+```
+
+You can inspect active sessions.
+
+---
+
+# 2.5 Idle vs Active
+
+A connection can be:
+
+```text
+active
+idle
+idle in transaction
+```
+
+`idle in transaction` deserves attention because an open transaction can hold resources or prevent cleanup.
+
+---
+
+# 2.6 Production Lesson
+
+Connection management belongs to:
+
+```text
+Application Engineering
++
+Database Engineering
+```
+
+It is not purely a database problem.
+
+---
+
+# CHAPTER 03 — SQL EXECUTION PIPELINE
+
+You write:
+
+```sql
+SELECT *
+FROM products
+WHERE price > 1000;
+```
+
+What happens?
+
+Conceptually:
+
+```text
+SQL
+ ↓
+Parser
+ ↓
+Parse / validation
+ ↓
+Planner
+ ↓
+Execution plan
+ ↓
+Executor
+ ↓
+Storage / cache
+ ↓
+Rows
+ ↓
+Client
+```
+
+---
+
+# 3.1 Parser
+
+The parser checks the SQL structure.
+
+---
+
+# 3.2 Planner
+
+The planner considers possible execution strategies.
+
+For example:
+
+```text
+Sequential Scan
+        OR
+Index Scan
+```
+
+It estimates which plan is appropriate.
+
+---
+
+# 3.3 Executor
+
+The executor performs the selected plan.
+
+---
+
+# 3.4 Why This Matters
+
+When you use:
+
+```sql
+EXPLAIN
+```
+
+you are essentially asking:
+
+> What execution strategy does PostgreSQL intend to use?
+
+When you use:
+
+```sql
+EXPLAIN ANALYZE
+```
+
+you are asking:
+
+> What actually happened when this query executed?
+
+---
+
+# CHAPTER 04 — MEMORY, SHARED BUFFERS & CACHING
+
+Databases would be painfully slow if every operation required reading from disk.
+
+Memory is therefore extremely important.
+
+---
+
+# 4.1 Basic Storage Hierarchy
+
+Conceptually:
+
+```text
+CPU Cache
+   ↓
+RAM
+   ↓
+SSD
+   ↓
+Network / Remote Storage
+```
+
+Generally:
+
+```text
+faster
+↑
+CPU cache
+RAM
+SSD
+network storage
+↓
+slower
+```
+
+---
+
+# 4.2 PostgreSQL Shared Buffers
+
+PostgreSQL maintains shared memory for database pages.
+
+Conceptually:
+
+```text
+Disk
+ ↓
+Database Page
+ ↓
+Shared Buffer
+ ↓
+Query
+```
+
+If required data is already in memory, PostgreSQL can avoid reading it from disk.
+
+---
+
+# 4.3 Cache Hit
+
+Suppose a query repeatedly accesses the same data.
+
+First request:
+
+```text
+Disk → Memory
+```
+
+Later:
+
+```text
+Memory → Query
+```
+
+This can dramatically improve performance.
+
+---
+
+# 4.4 OS Cache
+
+PostgreSQL also interacts with the operating system's filesystem cache.
+
+Therefore the complete memory picture isn't simply:
+
+```text
+PostgreSQL memory
+```
+
+It involves:
+
+```text
+PostgreSQL memory
++
+Operating system cache
++
+Storage cache
+```
+
+---
+
+# 4.5 Practical Lesson
+
+Don't blindly increase memory parameters.
+
+Memory tuning requires understanding:
+
+* workload
+* available RAM
+* PostgreSQL configuration
+* OS behavior
+* concurrency
+
+---
+
+# CHAPTER 05 — POSTGRESQL STORAGE ARCHITECTURE
+
+PostgreSQL stores persistent database information on disk.
+
+At a high level:
+
+```text
+PostgreSQL data directory
+│
+├── databases
+├── tables
+├── indexes
+├── WAL
+├── configuration
+└── system metadata
+```
+
+The exact internal directory structure should not be manipulated manually.
+
+Use PostgreSQL tools.
+
+---
+
+# 5.1 Data Directory
+
+You can find the active data directory using PostgreSQL configuration/tools rather than guessing filesystem paths.
+
+For example:
+
+```sql
+SHOW data_directory;
+```
+
+---
+
+# 5.2 Tables Are Stored
+
+A table isn't just an abstract SQL object.
+
+Eventually:
+
+```text
+SQL table
+    ↓
+physical storage
+    ↓
+disk pages
+```
+
+---
+
+# 5.3 Indexes Also Consume Storage
+
+An index is additional physical data.
+
+Therefore:
+
+```text
+Table
++
+Indexes
+=
+Storage
+```
+
+More indexes aren't free.
+
+---
+
+# CHAPTER 06 — PAGES, TUPLES & TABLE STORAGE
+
+This chapter gives you the physical mental model.
+
+---
+
+# 6.1 Page
+
+PostgreSQL organizes storage into fixed-size pages.
+
+A common PostgreSQL page size is:
+
+```text
+8 KB
+```
+
+Think of a page as a unit of storage I/O.
+
+---
+
+# 6.2 Tuple
+
+A table row is internally represented as a tuple.
+
+Conceptually:
+
+```text
+Page
+│
+├── Tuple
+├── Tuple
+├── Tuple
+└── Tuple
+```
+
+---
+
+# 6.3 Why Pages Matter
+
+A database doesn't usually think:
+
+> "Read one row from SSD."
+
+It works with blocks/pages of storage.
+
+Therefore:
+
+```text
+More pages read
+=
+More I/O work
+```
+
+---
+
+# 6.4 Wide Rows
+
+If rows become very large, fewer rows fit into each page.
+
+That can increase storage and I/O requirements.
+
+---
+
+# 6.5 TOAST
+
+PostgreSQL has mechanisms for handling values too large to fit conveniently inside normal row storage.
+
+This is known as:
+
+> TOAST — The Oversized-Attribute Storage Technique.
+
+You don't need to memorize its internal implementation.
+
+Understand:
+
+> PostgreSQL has mechanisms for storing large field values separately when necessary.
+
+---
+
+# CHAPTER 07 — MVCC FROM FIRST PRINCIPLES
+
+This is one of the most important PostgreSQL concepts.
+
+MVCC means:
+
+> Multi-Version Concurrency Control.
+
+---
+
+# 7.1 The Problem
+
+Imagine:
+
+```text
+Transaction A
+reads account balance
+
+Transaction B
+updates account balance
+```
+
+What should A see?
+
+Databases need rules for consistent visibility.
+
+---
+
+# 7.2 Multiple Versions
+
+PostgreSQL doesn't simply overwrite the conceptual history of a row in place for every update.
+
+Instead, PostgreSQL's MVCC model maintains row-version information that allows transactions to determine which version is visible to them.
+
+Conceptually:
+
+```text
+Row version 1
+      ↓
+Row version 2
+      ↓
+Row version 3
+```
+
+---
+
+# 7.3 Why This Is Powerful
+
+MVCC helps allow:
+
+```text
+Reader
++
+Writer
+```
+
+to operate concurrently without every read blocking every write.
+
+---
+
+# 7.4 The Cost
+
+Old row versions eventually need cleanup.
+
+That leads directly to:
+
+```text
+VACUUM
+```
+
+---
+
+# 7.5 MVCC Mental Model
+
+Think:
+
+```text
+UPDATE
+ ↓
+new row version
+ ↓
+old version becomes obsolete
+ ↓
+VACUUM eventually cleans obsolete versions
+```
+
+This is simplified, but it is an extremely useful operational model.
+
+---
+
+# CHAPTER 08 — TRANSACTIONS & ISOLATION LEVELS
+
+A transaction is a logical unit of work.
+
+---
+
+# 8.1 Atomicity
+
+Either:
+
+```text
+everything succeeds
+```
+
+or:
+
+```text
+everything rolls back
+```
+
+---
+
+# 8.2 Isolation
+
+Concurrent transactions should behave according to the database's isolation rules.
+
+PostgreSQL supports isolation levels including:
+
+```text
+Read Committed
+Repeatable Read
+Serializable
+```
+
+PostgreSQL also accepts the SQL standard name `Read Uncommitted`, but its behavior is effectively the same as Read Committed.
+
+---
+
+# 8.3 Read Committed
+
+This is PostgreSQL's default isolation level.
+
+A statement sees data according to PostgreSQL's read-committed visibility rules.
+
+Important distinction:
+
+> Transaction-level consistency and statement-level visibility are not identical concepts.
+
+---
+
+# 8.4 Repeatable Read
+
+Provides a more stable transaction snapshot.
+
+Useful when multiple statements need a consistent view.
+
+---
+
+# 8.5 Serializable
+
+Attempts to provide behavior equivalent to serial execution of transactions.
+
+But it can result in serialization failures that the application must retry.
+
+---
+
+# 8.6 Practical Backend Example
+
+Suppose you are transferring money:
+
+```text
+BEGIN
+
+debit account A
+
+credit account B
+
+COMMIT
+```
+
+If credit fails:
+
+```text
+ROLLBACK
+```
+
+The transfer should not leave the system half-completed.
+
+---
+
+# CHAPTER 09 — LOCKS & CONCURRENCY
+
+Transactions alone don't explain every concurrency problem.
+
+Locks matter.
+
+---
+
+# 9.1 Why Locks Exist
+
+Imagine:
+
+```text
+Transaction A
+updates product stock
+
+Transaction B
+updates the same product stock
+```
+
+The database needs coordination.
+
+---
+
+# 9.2 Row-Level Lock
+
+Conceptually:
+
+```text
+Transaction A
+      ↓
+locks row
+      ↓
+updates
+```
+
+Transaction B may need to wait depending on the operation and lock conflict.
+
+---
+
+# 9.3 Table-Level Locks
+
+PostgreSQL also has stronger locks affecting tables.
+
+Different lock modes conflict differently.
+
+You don't need to memorize the complete lock matrix at this stage.
+
+Understand:
+
+> Different operations require different levels of coordination.
+
+---
+
+# 9.4 Deadlock
+
+Classic scenario:
+
+```text
+Transaction A
+locks Row 1
+waits for Row 2
+
+Transaction B
+locks Row 2
+waits for Row 1
+```
+
+Result:
+
+```text
+A → waiting
+B → waiting
+```
+
+PostgreSQL detects deadlocks and aborts one transaction.
+
+---
+
+# 9.5 Avoiding Deadlocks
+
+One important strategy:
+
+> Acquire resources in a consistent order.
+
+For example:
+
+```text
+Always lock account A before account B
+```
+
+rather than allowing different code paths to lock them in different orders.
+
+---
+
+# 9.6 Inspecting Locks
+
+PostgreSQL provides statistics/views for investigating activity and locks.
+
+One useful starting point is:
+
+```sql
+SELECT
+    pid,
+    usename,
+    state,
+    query
+FROM pg_stat_activity;
+```
+
+Later, combine activity information with lock views during troubleshooting.
+
+---
+
+# CHAPTER 10 — WAL & DURABILITY
+
+WAL means:
+
+> Write-Ahead Logging.
+
+This is fundamental to PostgreSQL durability and recovery.
+
+---
+
+# 10.1 Core Principle
+
+Before certain data changes are considered durably committed, PostgreSQL records the necessary change information in the WAL.
+
+Conceptually:
+
+```text
+Transaction change
+       ↓
+WAL
+       ↓
+durability boundary
+       ↓
+data pages
+```
+
+The exact internals are more sophisticated, but this is the key idea.
+
+---
+
+# 10.2 Why WAL?
+
+Imagine:
+
+```text
+Database page in memory
+       ↓
+server crashes
+       ↓
+memory lost
+```
+
+Without durable change records, recent changes could disappear.
+
+WAL provides the information needed for recovery.
+
+---
+
+# 10.3 WAL Enables
+
+WAL is fundamental to:
+
+* crash recovery
+* replication
+* point-in-time recovery
+* durability
+
+---
+
+# 10.4 Important Mental Model
+
+Do not think:
+
+> "PostgreSQL writes every changed row directly to disk and that's it."
+
+Think:
+
+```text
+Change
+ ↓
+WAL
+ ↓
+durability
+ ↓
+data pages eventually persisted
+```
+
+---
+
+# CHAPTER 11 — CHECKPOINTS & CRASH RECOVERY
+
+---
+
+# 11.1 Checkpoint
+
+A checkpoint establishes a known recovery point where dirty database pages are written toward persistent storage.
+
+It helps control recovery work.
+
+---
+
+# 11.2 Crash
+
+Suppose:
+
+```text
+Transaction
+   ↓
+WAL written
+   ↓
+Server crashes
+```
+
+On restart PostgreSQL can use WAL to recover changes that were not fully reflected in data files before the crash.
+
+---
+
+# 11.3 Recovery Mental Model
+
+```text
+Database files
++
+WAL
+      ↓
+Crash recovery
+      ↓
+Consistent database state
+```
+
+---
+
+# 11.4 Why Recovery Time Matters
+
+If recovery takes too long:
+
+```text
+Application downtime
+```
+
+Therefore production systems care about:
+
+* WAL generation
+* checkpoint behavior
+* storage speed
+* recovery time
+
+---
+
+# CHAPTER 12 — VACUUM, DEAD TUPLES & TABLE BLOAT
+
+This is a critical PostgreSQL operational concept.
+
+---
+
+# 12.1 Why Dead Tuples Exist
+
+Suppose:
+
+```text
+UPDATE customer
+SET name = 'New Name';
+```
+
+Under MVCC, the old row version eventually becomes obsolete.
+
+That creates dead tuple cleanup work.
+
+---
+
+# 12.2 VACUUM
+
+`VACUUM` helps reclaim/reuse space associated with dead tuples and maintains visibility information.
+
+---
+
+# 12.3 Autovacuum
+
+PostgreSQL normally handles routine vacuuming automatically through:
+
+> autovacuum
+
+This is one of the most important background maintenance mechanisms.
+
+---
+
+# 12.4 VACUUM vs VACUUM FULL
+
+Normal:
+
+```sql
+VACUUM;
+```
+
+is routine maintenance.
+
+`VACUUM FULL` is much more disruptive because it rewrites the table and requires stronger locking.
+
+Do not use `VACUUM FULL` casually in production.
+
+---
+
+# 12.5 Bloat
+
+If obsolete row versions accumulate excessively, tables/indexes can become bloated.
+
+Consequences can include:
+
+```text
+more storage
+more pages
+more I/O
+slower scans
+```
+
+---
+
+# 12.6 Monitoring
+
+Useful statistics can be found through PostgreSQL system views such as:
+
+```text
+pg_stat_user_tables
+```
+
+Look for information about:
+
+* live tuples
+* dead tuples
+* vacuum activity
+* analyze activity
+
+---
+
+# CHAPTER 13 — POSTGRESQL INDEX INTERNALS
+
+V03 taught you how indexes affect queries.
+
+Now understand the basic physical idea.
+
+---
+
+# 13.1 B-Tree
+
+PostgreSQL's default index type is:
+
+> B-tree
+
+Conceptually:
+
+```text
+              Root
+            /      \
+          /          \
+      branch        branch
+       /  \          /  \
+     leaf leaf      leaf leaf
+```
+
+It supports efficient ordered lookups.
+
+---
+
+# 13.2 Useful Operations
+
+B-tree indexes are useful for many:
+
+```text
+=
+<
+>
+<=
+>=
+ORDER BY
+range queries
+```
+
+depending on the query and index structure.
+
+---
+
+# 13.3 Hash Index
+
+PostgreSQL also supports hash indexes.
+
+Conceptually:
+
+```text
+key
+ ↓
+hash
+ ↓
+bucket
+```
+
+They are specialized for equality-oriented access.
+
+Don't automatically prefer them over B-tree.
+
+---
+
+# 13.4 GIN
+
+GIN is useful for certain multi-valued or document-oriented search patterns, including some JSONB and full-text-search workloads.
+
+---
+
+# 13.5 GiST
+
+GiST provides a flexible framework useful for specialized data types and search strategies.
+
+---
+
+# 13.6 BRIN
+
+BRIN can be very useful for very large tables where physical row order correlates with the queried values.
+
+For example:
+
+```text
+timestamp increases
+        ↓
+physical storage roughly follows time
+```
+
+BRIN can be much smaller than a traditional index in appropriate workloads.
+
+---
+
+# 13.7 Index Trade-Off
+
+Remember:
+
+```text
+Index
+ ↓
+faster reads
+ +
+storage cost
+ +
+write/update maintenance
+ +
+vacuum work
+```
+
+Indexing is a workload decision.
+
+---
+
+# CHAPTER 14 — QUERY PLANNER & STATISTICS
+
+PostgreSQL's planner doesn't know the future.
+
+It makes estimates.
+
+---
+
+# 14.1 Why Estimates Matter
+
+Suppose:
+
+```text
+Actual matching rows = 500,000
+```
+
+but planner estimates:
+
+```text
+100
+```
+
+It may choose a poor strategy.
+
+---
+
+# 14.2 Statistics
+
+PostgreSQL maintains statistics about table data.
+
+`ANALYZE` updates these statistics.
+
+Autovacuum can also perform automatic analyze operations.
+
+---
+
+# 14.3 ANALYZE
+
+You can explicitly run:
+
+```sql
+ANALYZE products;
+```
+
+This helps PostgreSQL understand the current data distribution.
+
+---
+
+# 14.4 Data Distribution
+
+Imagine:
+
+```text
+status
+------
+completed = 99%
+cancelled = 1%
+```
+
+An index on status may not be equally useful for every query.
+
+The planner needs statistical information to make informed decisions.
+
+---
+
+# 14.5 EXPLAIN Investigation
+
+Compare:
+
+```text
+estimated rows
+actual rows
+```
+
+If they're dramatically different, investigate:
+
+* stale statistics
+* data skew
+* complex predicates
+* correlated columns
+* planner limitations
+
+---
+
+# CHAPTER 15 — CONNECTION POOLING
+
+Connection pooling deserves deeper treatment because it directly affects backend architecture.
+
+---
+
+# 15.1 Without Pooling
+
+```text
+Request
+ ↓
+Create DB connection
+ ↓
+Query
+ ↓
+Close
+```
+
+Repeated thousands of times is inefficient.
+
+---
+
+# 15.2 With Pooling
+
+```text
+Application
+     ↓
+Pool
+ ┌───┬───┬───┐
+ C1  C2  C3
+ └───┴───┴───┘
+     ↓
+PostgreSQL
+```
+
+Requests reuse connections.
+
+---
+
+# 15.3 Pool Size
+
+Too small:
+
+```text
+requests wait
+```
+
+Too large:
+
+```text
+database overloaded
+```
+
+The goal is not:
+
+> Maximum possible connections.
+
+The goal is:
+
+> Enough concurrency without overwhelming PostgreSQL.
+
+---
+
+# 15.4 Pooling and Transactions
+
+A connection returned to a pool must not retain an unfinished transaction.
+
+This is why:
+
+```text
+idle in transaction
+```
+
+can be dangerous.
+
+Application frameworks should correctly:
+
+```text
+BEGIN
+→ work
+→ COMMIT/ROLLBACK
+→ release connection
+```
+
+---
+
+# CHAPTER 16 — POSTGRESQL CONFIGURATION
+
+PostgreSQL has many configuration settings.
+
+Don't memorize all of them.
+
+Learn how to investigate them.
+
+---
+
+# 16.1 SHOW
+
+```sql
+SHOW shared_buffers;
+```
+
+---
+
+# 16.2 Current Settings
+
+```sql
+SHOW work_mem;
+SHOW maintenance_work_mem;
+SHOW max_connections;
+SHOW shared_buffers;
+```
+
+---
+
+# 16.3 Configuration Philosophy
+
+Never copy a random tuning guide and blindly change settings.
+
+Instead:
+
+```text
+Workload
+ ↓
+Measure
+ ↓
+Identify bottleneck
+ ↓
+Understand setting
+ ↓
+Change
+ ↓
+Measure
+```
+
+---
+
+# 16.4 Important Categories
+
+Understand the purpose of:
+
+```text
+Memory
+Connections
+WAL
+Checkpoints
+Autovacuum
+Logging
+Planner
+Parallelism
+```
+
+You don't need to memorize every parameter.
+
+---
+
+# CHAPTER 17 — DATABASE SECURITY & ACCESS CONTROL
+
+Production databases must assume that credentials can be exposed.
+
+Defense in depth matters.
+
+---
+
+# 17.1 Roles
+
+PostgreSQL uses roles for authentication/authorization.
+
+Example:
+
+```sql
+CREATE ROLE app_user LOGIN PASSWORD '...';
+```
+
+In production, credentials should come from secure secret management rather than being committed to Git.
+
+---
+
+# 17.2 Least Privilege
+
+An application should receive only the permissions it needs.
+
+For example:
+
+```text
+Application user
+    ↓
+SELECT
+INSERT
+UPDATE
+```
+
+rather than unrestricted administrative privileges.
+
+---
+
+# 17.3 Separate Roles
+
+Conceptually:
+
+```text
+admin_role
+migration_role
+application_role
+readonly_role
+```
+
+Each has a different responsibility.
+
+---
+
+# 17.4 Network Security
+
+Database security includes:
+
+```text
+Authentication
+Authorization
+Network access
+Encryption
+Secrets
+Auditing
+```
+
+Not just passwords.
+
+---
+
+# 17.5 Never Expose PostgreSQL Unnecessarily
+
+If your backend is:
+
+```text
+Internet
+   ↓
+API
+   ↓
+PostgreSQL
+```
+
+clients generally should not directly access PostgreSQL.
+
+The application layer controls access.
+
+---
+
+# CHAPTER 18 — BACKUP & RESTORE ENGINEERING
+
+A backup isn't valuable merely because:
+
+```text
+backup file exists
+```
+
+A backup is valuable if:
+
+> You can successfully restore it.
+
+---
+
+# 18.1 Logical Backup
+
+PostgreSQL provides:
+
+```bash
+pg_dump
+```
+
+Example:
+
+```bash
+pg_dump -U postgres ecommerce > ecommerce.sql
+```
+
+---
+
+# 18.2 Restore
+
+For a SQL-format dump:
+
+```bash
+psql -U postgres -d ecommerce_restore < ecommerce.sql
+```
+
+---
+
+# 18.3 Custom Format
+
+PostgreSQL supports custom-format dumps that can be restored using:
+
+```bash
+pg_restore
+```
+
+This gives additional flexibility.
+
+---
+
+# 18.4 Backup Strategy
+
+Think:
+
+```text
+What?
+When?
+Where?
+How long?
+Encrypted?
+Tested?
+```
+
+---
+
+# 18.5 Backup Verification
+
+A real backup drill:
+
+```text
+Create backup
+     ↓
+Create clean database
+     ↓
+Restore backup
+     ↓
+Run validation queries
+     ↓
+Compare expected data
+```
+
+---
+
+# 18.6 3-2-1 Mental Model
+
+A useful general backup principle:
+
+```text
+3 copies
+2 different storage/media locations
+1 offsite copy
+```
+
+The exact implementation depends on the environment.
+
+---
+
+# CHAPTER 19 — POINT-IN-TIME RECOVERY CONCEPTS
+
+Logical backups alone aren't enough for every production recovery strategy.
+
+Suppose:
+
+```text
+Monday 10:00
+good state
+
+Monday 15:32
+accidental DELETE
+
+Monday 16:00
+problem discovered
+```
+
+You may want:
+
+> Restore the database to just before 15:32.
+
+This is:
+
+> Point-in-Time Recovery (PITR)
+
+---
+
+# 19.1 Concept
+
+PITR generally combines:
+
+```text
+Base backup
++
+WAL archives
+```
+
+Conceptually:
+
+```text
+Base Backup
+     ↓
+WAL 1
+ ↓
+WAL 2
+ ↓
+WAL 3
+ ↓
+Target time
+```
+
+---
+
+# 19.2 Why WAL Matters
+
+This connects:
+
+```text
+WAL
++
+Backup
++
+Recovery
+```
+
+into one system.
+
+---
+
+# 19.3 Recovery Objectives
+
+Two important concepts:
+
+## RPO
+
+Recovery Point Objective:
+
+> How much data loss is acceptable?
+
+Example:
+
+```text
+RPO = 5 minutes
+```
+
+means the recovery design aims to limit potential data loss to around that order of magnitude.
+
+## RTO
+
+Recovery Time Objective:
+
+> How long can recovery take?
+
+Example:
+
+```text
+RTO = 30 minutes
+```
+
+---
+
+# CHAPTER 20 — REPLICATION FUNDAMENTALS
+
+Replication means maintaining copies of database state across systems.
+
+---
+
+# 20.1 Primary / Standby
+
+Conceptually:
+
+```text
+             Primary
+                │
+              WAL
+                ↓
+             Standby
+```
+
+---
+
+# 20.2 Why Replicate?
+
+Potential purposes:
+
+* high availability
+* disaster recovery
+* read scaling
+* operational resilience
+
+These are different goals.
+
+---
+
+# 20.3 Streaming Replication
+
+PostgreSQL can stream WAL changes from a primary to a standby.
+
+Conceptually:
+
+```text
+Primary
+  ↓
+WAL
+  ↓
+network
+  ↓
+Standby
+  ↓
+replay
+```
+
+---
+
+# 20.4 Replication Lag
+
+Standby may temporarily be behind primary.
+
+```text
+Primary:
+LSN 1000
+
+Standby:
+LSN 950
+```
+
+The difference represents lag in progress.
+
+---
+
+# 20.5 Important Lesson
+
+A replica is not automatically:
+
+> A backup.
+
+Replication can copy:
+
+```text
+bad data
+```
+
+too.
+
+If an accidental delete is replicated, the replica can also receive it.
+
+Therefore:
+
+```text
+Replication
+≠
+Backup
+```
+
+You may need both.
+
+---
+
+# CHAPTER 21 — HIGH AVAILABILITY CONCEPTS
+
+Replication is a component.
+
+High availability is a larger system.
+
+---
+
+# 21.1 Basic HA
+
+```text
+Application
+     ↓
+Database endpoint
+     ↓
+Primary
+     │
+     ↓
+Standby
+```
+
+If primary fails, some mechanism must detect and handle the failure.
+
+---
+
+# 21.2 Failover
+
+Possible architecture:
+
+```text
+Primary
+   ↓
+Standby
+   ↓
+Failure detection
+   ↓
+Promotion
+   ↓
+New primary
+```
+
+---
+
+# 21.3 HA Problems
+
+Failover introduces challenges:
+
+* split brain
+* stale replicas
+* lost transactions
+* DNS/endpoint changes
+* application reconnection
+* replication lag
+* operational complexity
+
+---
+
+# 21.4 Practical Goal
+
+At this stage, understand:
+
+```text
+Availability
+≠
+Replication alone
+```
+
+A production HA system requires coordinated infrastructure, automation, monitoring and recovery procedures.
+
+---
+
+# CHAPTER 22 — PARTITIONING
+
+Partitioning divides a large logical table into smaller physical pieces.
+
+---
+
+# 22.1 Why?
+
+Imagine:
+
+```text
+orders
+500 million rows
+```
+
+Maybe partition by time:
+
+```text
+orders_2026_01
+orders_2026_02
+orders_2026_03
+...
+```
+
+---
+
+# 22.2 Range Partitioning
+
+Common for time-based data.
+
+Conceptually:
+
+```text
+2026-01
+2026-02
+2026-03
+```
+
+---
+
+# 22.3 List Partitioning
+
+Partition according to discrete categories.
+
+Example:
+
+```text
+region = south
+region = north
+```
+
+---
+
+# 22.4 Hash Partitioning
+
+Distribute rows according to a hash.
+
+Useful in some workloads where balanced distribution matters.
+
+---
+
+# 22.5 Partition Pruning
+
+If a query asks:
+
+```sql
+WHERE created_at >= '2026-01-01'
+  AND created_at < '2026-02-01'
+```
+
+PostgreSQL may only need to access relevant partitions.
+
+---
+
+# 22.6 Don't Partition Everything
+
+Partitioning introduces complexity.
+
+Use it when:
+
+```text
+table size
++
+workload
++
+maintenance requirements
+```
+
+justify it.
+
+---
+
+# CHAPTER 23 — DATABASE MONITORING & OBSERVABILITY
+
+Production databases need observability.
+
+You cannot operate what you cannot see.
+
+---
+
+# 23.1 Four Important Areas
+
+Monitor:
+
+```text
+Connections
+Queries
+Resources
+Storage
+```
+
+---
+
+# 23.2 Connections
+
+Inspect:
+
+```sql
+SELECT *
+FROM pg_stat_activity;
+```
+
+Questions:
+
+* How many connections?
+* Which are active?
+* Which are idle?
+* Is anything stuck?
+
+---
+
+# 23.3 Query Statistics
+
+PostgreSQL deployments can use:
+
+```text
+pg_stat_statements
+```
+
+to collect query execution statistics.
+
+It can help identify:
+
+* frequently executed queries
+* total execution time
+* average execution time
+* rows returned
+* resource-heavy query patterns
+
+---
+
+# 23.4 Database Resources
+
+Monitor:
+
+```text
+CPU
+RAM
+Disk
+Disk I/O
+Network
+```
+
+---
+
+# 23.5 Storage
+
+Monitor:
+
+```text
+Database size
+Table size
+Index size
+WAL growth
+Disk free space
+```
+
+A database can fail simply because:
+
+```text
+disk = 100% full
+```
+
+---
+
+# 23.6 Observability Mental Model
+
+```text
+Metrics
+   +
+Logs
+   +
+Query statistics
+   +
+System information
+   ↓
+Diagnosis
+```
+
+This connects directly to DevOps Volume 18 later.
+
+---
+
+# CHAPTER 24 — PRODUCTION TROUBLESHOOTING
+
+This chapter is about thinking.
+
+---
+
+# Problem 1 — Database Is Slow
+
+Don't immediately:
+
+```text
+restart PostgreSQL
+```
+
+Investigate.
+
+```text
+Is everything slow?
+        ↓
+Specific query?
+        ↓
+Specific endpoint?
+        ↓
+High CPU?
+        ↓
+High I/O?
+        ↓
+Locks?
+        ↓
+Connections?
+        ↓
+Storage?
+```
+
+---
+
+# Problem 2 — Requests Are Hanging
+
+Investigate:
+
+```text
+Application
+ ↓
+Connection pool
+ ↓
+Database connections
+ ↓
+Locks
+ ↓
+Long-running transactions
+```
+
+---
+
+# Problem 3 — Disk Usage Exploding
+
+Investigate:
+
+```text
+Table growth
++
+Index growth
++
+WAL
++
+Logs
++
+Temporary files
+```
+
+Don't assume the table is responsible.
+
+---
+
+# Problem 4 — Queries Became Slow
+
+Compare:
+
+```text
+Old plan
+vs
+New plan
+```
+
+Investigate:
+
+* data growth
+* statistics
+* indexes
+* planner estimates
+* query changes
+* parameter distribution
+
+---
+
+# Problem 5 — Database Won't Accept Connections
+
+Possible causes:
+
+```text
+max connections
+server down
+network
+authentication
+resource exhaustion
+connection pool explosion
+```
+
+This is why diagnosis must be systematic.
+
+---
+
+# CHAPTER 25 — POSTGRESQL PERFORMANCE ENGINEERING
+
+Performance engineering is a process.
+
+---
+
+# 25.1 Performance Stack
+
+```text
+Application
+     ↓
+Connection Pool
+     ↓
+SQL
+     ↓
+Planner
+     ↓
+Memory
+     ↓
+CPU
+     ↓
+Storage
+```
+
+A bottleneck at any layer can affect the final response time.
+
+---
+
+# 25.2 Query Performance
+
+Use:
+
+```text
+EXPLAIN
+EXPLAIN ANALYZE
+pg_stat_statements
+```
+
+---
+
+# 25.3 Database Performance
+
+Monitor:
+
+```text
+CPU
+RAM
+I/O
+connections
+locks
+vacuum
+WAL
+```
+
+---
+
+# 25.4 Application Performance
+
+A database query taking:
+
+```text
+50 ms
+```
+
+doesn't mean the API response takes:
+
+```text
+50 ms
+```
+
+There may also be:
+
+```text
+network
+serialization
+business logic
+multiple queries
+frontend latency
+```
+
+---
+
+# 25.5 N+1
+
+Example:
+
+```text
+1 query
++
+100 customer queries
+=
+101 queries
+```
+
+Sometimes reducing this to:
+
+```text
+2–3 well-designed queries
+```
+
+can have a major impact.
+
+---
+
+# 25.6 Performance Budget
+
+Instead of:
+
+> "Make it fast."
+
+Define:
+
+```text
+API p95 < target
+DB query p95 < target
+error rate < target
+```
+
+The exact targets depend on the application.
+
+---
+
+# CHAPTER 26 — POSTGRESQL DEPLOYMENT & OPERATIONS
+
+Now connect PostgreSQL with DevOps.
+
+---
+
+# 26.1 Local Development
+
+```text
+Ubuntu
+ ↓
+PostgreSQL
+ ↓
+Application
+```
+
+---
+
+# 26.2 Docker
+
+Later:
+
+```text
+Docker
+ └── PostgreSQL container
+```
+
+But remember:
+
+> Containerizing PostgreSQL does not magically make database operations easy.
+
+You still need:
+
+* persistent storage
+* backups
+* security
+* upgrades
+* monitoring
+
+---
+
+# 26.3 Managed PostgreSQL
+
+Cloud providers can manage:
+
+* provisioning
+* backups
+* patching
+* monitoring
+* replication
+* failover
+
+But:
+
+> Managed does not mean responsibility disappears.
+
+You still own:
+
+* schema
+* queries
+* access control
+* application behavior
+* data lifecycle
+* recovery requirements
+
+---
+
+# 26.4 Database Migrations
+
+Production schema changes should be version-controlled.
+
+Conceptually:
+
+```text
+Migration 001
+Create users
+
+Migration 002
+Create products
+
+Migration 003
+Add index
+
+Migration 004
+Add column
+```
+
+---
+
+# 26.5 Dangerous Migration
+
+Imagine:
+
+```sql
+ALTER TABLE users
+ADD COLUMN expensive_computation ...
+```
+
+on a huge production table.
+
+A schema change can have:
+
+* lock impact
+* execution time
+* storage impact
+* application compatibility issues
+
+Therefore migrations are engineering changes, not merely SQL scripts.
+
+---
+
+# 26.6 Expand-and-Contract
+
+For risky schema changes:
+
+```text
+Old application
+      ↓
+Expand schema
+      ↓
+Support old + new
+      ↓
+Deploy new application
+      ↓
+Migrate data
+      ↓
+Remove old structure
+```
+
+This becomes extremely important for production systems.
+
+---
+
+# CHAPTER 27 — MINI-PROJECT
+
+# Project: Production PostgreSQL Lab
+
+We will continue using the **V02/V03 e-commerce database**.
+
+No new pointless application.
+
+This project transforms your existing database into a production-style PostgreSQL environment.
+
+---
+
+# Project Objective
+
+Build a local PostgreSQL system where you can demonstrate:
+
+```text
+Architecture
+Transactions
+Concurrency
+MVCC
+Indexes
+Query plans
+Vacuum
+Backup
+Restore
+Monitoring
+Failure recovery
+Security
+Performance investigation
+```
+
+---
+
+# Phase 1 — Environment
+
+Ubuntu machine:
+
+```text
+Ubuntu
+  ↓
+PostgreSQL
+  ↓
+E-Commerce Database
+  ↓
+Backend API
+```
+
+Record:
+
+```bash
+psql --version
+```
+
+and:
+
+```sql
+SELECT version();
+```
+
+---
+
+# Phase 2 — Architecture Documentation
+
+Create:
+
+```text
+docs/postgresql-architecture.md
+```
+
+Document:
+
+```text
+Application
+ ↓
+Driver
+ ↓
+Connection Pool
+ ↓
+PostgreSQL
+ ↓
+Planner
+ ↓
+Executor
+ ↓
+Shared Buffers
+ ↓
+Storage
+ ↓
+WAL
+```
+
+Explain each layer in your own words.
+
+---
+
+# Phase 3 — Connection Lab
+
+Inspect:
+
+```sql
+SELECT
+    pid,
+    usename,
+    application_name,
+    client_addr,
+    state
+FROM pg_stat_activity;
+```
+
+Then create a small application connection pool.
+
+Experiment with:
+
+```text
+pool size = 2
+pool size = 5
+pool size = 10
+```
+
+Observe behavior.
+
+Do not assume larger is better.
+
+---
+
+# Phase 4 — MVCC Lab
+
+Create two PostgreSQL sessions.
+
+### Session A
+
+Start:
+
+```sql
+BEGIN;
+```
+
+Read a row.
+
+### Session B
+
+Update that row.
+
+Observe how transaction visibility behaves.
+
+Commit/rollback and repeat under different isolation levels.
+
+Document:
+
+```text
+What Session A saw
+What Session B saw
+Why
+Isolation level
+```
+
+---
+
+# Phase 5 — Lock Lab
+
+Create two sessions.
+
+Session A:
+
+```sql
+BEGIN;
+
+SELECT *
+FROM products
+WHERE id = 1
+FOR UPDATE;
+```
+
+Session B attempts a conflicting operation.
+
+Observe blocking.
+
+Then release the transaction.
+
+Document:
+
+```text
+Who blocked?
+Why?
+How was the block released?
+```
+
+---
+
+# Phase 6 — Deadlock Lab
+
+Create two transactions:
+
+```text
+Transaction A:
+lock Row 1
+then Row 2
+
+Transaction B:
+lock Row 2
+then Row 1
+```
+
+Observe PostgreSQL's deadlock handling.
+
+Then fix the application strategy by acquiring locks consistently.
+
+---
+
+# Phase 7 — WAL Experiment
+
+Perform a set of updates.
+
+Observe PostgreSQL WAL-related statistics/configuration.
+
+Your goal is not to manually manipulate WAL files.
+
+Your goal is to understand:
+
+```text
+Database change
+ ↓
+WAL
+ ↓
+durability
+ ↓
+recovery
+```
+
+---
+
+# Phase 8 — Vacuum Lab
+
+Create and update/delete a dataset.
+
+Inspect table statistics.
+
+Run:
+
+```sql
+VACUUM ANALYZE products;
+```
+
+Compare statistics before and after.
+
+Understand:
+
+```text
+dead tuples
+vacuum
+analyze
+autovacuum
+```
+
+---
+
+# Phase 9 — Index Lab
+
+Create a realistic query.
+
+Measure:
+
+```sql
+EXPLAIN ANALYZE
+```
+
+Then create an appropriate index.
+
+Run again.
+
+Document:
+
+```text
+Before plan
+After plan
+Before execution
+After execution
+Trade-offs
+```
+
+---
+
+# Phase 10 — Statistics Lab
+
+Modify data distribution significantly.
+
+Run:
+
+```sql
+EXPLAIN
+```
+
+Observe estimates.
+
+Then:
+
+```sql
+ANALYZE;
+```
+
+Run the query again.
+
+Compare estimates.
+
+---
+
+# Phase 11 — Backup Lab
+
+Create:
+
+```text
+backup/
+```
+
+Generate a backup.
+
+Then:
+
+```text
+Create clean database
+        ↓
+Restore
+        ↓
+Validate tables
+        ↓
+Validate row counts
+        ↓
+Validate important queries
+```
+
+Do not call the lab complete until restoration works.
+
+---
+
+# Phase 12 — Security Lab
+
+Create roles:
+
+```text
+app_user
+readonly_user
+admin_user
+```
+
+Give each appropriate privileges.
+
+Test:
+
+```text
+Can app_user SELECT?
+Can app_user DROP?
+Can readonly_user INSERT?
+Can admin_user manage the database?
+```
+
+Document the results.
+
+---
+
+# Phase 13 — Monitoring Lab
+
+Enable/use appropriate query statistics tooling such as:
+
+```text
+pg_stat_statements
+```
+
+Generate workload.
+
+Identify:
+
+```text
+Most frequently executed query
+Most expensive query
+Queries with high total execution time
+```
+
+---
+
+# Phase 14 — Failure Injection
+
+Simulate:
+
+### Failure A
+
+Connection pool exhaustion.
+
+### Failure B
+
+Long-running transaction.
+
+### Failure C
+
+Blocked query.
+
+### Failure D
+
+Deadlock.
+
+### Failure E
+
+Slow query.
+
+### Failure F
+
+Disk-space pressure in a safe environment.
+
+### Failure G
+
+Accidental data deletion followed by restore.
+
+For each:
+
+```text
+Symptom
+ ↓
+Hypothesis
+ ↓
+Evidence
+ ↓
+Root cause
+ ↓
+Fix
+ ↓
+Prevention
+```
+
+---
+
+# PROJECT STRUCTURE
+
+Extend the existing repository:
+
+```text
+postgres-ecommerce-lab/
+│
+├── README.md
+│
+├── docs/
+│   ├── architecture.md
+│   ├── schema.md
+│   ├── query-engineering-report.md
+│   ├── postgresql-architecture.md
+│   ├── mvcc.md
+│   ├── transactions.md
+│   ├── locks.md
+│   ├── vacuum.md
+│   ├── indexing.md
+│   ├── backup-recovery.md
+│   ├── security.md
+│   ├── monitoring.md
+│   └── failure-drills.md
+│
+├── schema/
+│   └── schema.sql
+│
+├── seed/
+│   └── seed.sql
+│
+├── queries/
+│
+├── migrations/
+│
+├── backups/
+│
+├── performance/
+│
+└── scripts/
+    ├── backup.sh
+    ├── restore.sh
+    └── health-check.sh
+```
+
+---
+
+# CHAPTER 28 — FAILURE INJECTION & RECOVERY DRILLS
+
+This chapter is mandatory.
+
+Production engineering is learned by understanding failure.
+
+---
+
+# Drill 1 — Long Transaction
+
+Start:
+
+```sql
+BEGIN;
+```
+
+Leave it open.
+
+Perform activity elsewhere.
+
+Observe:
+
+```text
+pg_stat_activity
+```
+
+Understand why long-running transactions can interfere with cleanup and system behavior.
+
+---
+
+# Drill 2 — Lock Blocking
+
+Create a row lock.
+
+Attempt a conflicting operation.
+
+Identify:
+
+```text
+blocking session
+blocked session
+```
+
+---
+
+# Drill 3 — Deadlock
+
+Create a controlled deadlock.
+
+Observe PostgreSQL terminating one transaction.
+
+Document:
+
+```text
+deadlock graph
+victim transaction
+application response
+```
+
+---
+
+# Drill 4 — Slow Query
+
+Create an inefficient query.
+
+Use:
+
+```sql
+EXPLAIN ANALYZE
+```
+
+Identify the expensive operation.
+
+Improve it.
+
+---
+
+# Drill 5 — Missing Index
+
+Measure:
+
+```text
+without index
+```
+
+Then:
+
+```text
+with index
+```
+
+Compare.
+
+Do not assume the indexed version will always be faster.
+
+---
+
+# Drill 6 — Backup Failure
+
+Intentionally test a restore workflow with an invalid/incomplete backup in a disposable environment.
+
+Document:
+
+```text
+How did you detect failure?
+What validation was missing?
+How would production prevent this?
+```
+
+---
+
+# Drill 7 — Application Connection Explosion
+
+Configure an intentionally excessive pool in a local test environment.
+
+Observe:
+
+```text
+connection count
+application behavior
+database behavior
+```
+
+Then choose a safer configuration.
+
+---
+
+# Drill 8 — Recovery Scenario
+
+Simulate:
+
+```text
+Data exists
+ ↓
+Accidental deletion
+ ↓
+Problem discovered
+ ↓
+Restore
+ ↓
+Validate
+```
+
+The objective is not merely restoring files.
+
+The objective is:
+
+> Restoring trustworthy application state.
+
+---
+
+# CHAPTER 29 — FINAL REVIEW & ENGINEERING ASSESSMENT
+
+By the end of V04, you should understand:
+
+---
+
+## PostgreSQL Architecture
+
+You should be able to explain:
+
+```text
+Client
+ ↓
+Connection
+ ↓
+PostgreSQL backend
+ ↓
+Parser
+ ↓
+Planner
+ ↓
+Executor
+ ↓
+Memory
+ ↓
+Storage
+```
+
+---
+
+## Storage
+
+Understand:
+
+* pages
+* tuples
+* indexes
+* data files
+* WAL
+* caching
+
+---
+
+## MVCC
+
+Explain:
+
+> Why PostgreSQL needs multiple row versions and how that affects vacuum and concurrency.
+
+---
+
+## Transactions
+
+Understand:
+
+* atomicity
+* isolation
+* commit
+* rollback
+* Read Committed
+* Repeatable Read
+* Serializable
+
+---
+
+## Locks
+
+Understand:
+
+* row locks
+* table locks
+* blocking
+* deadlocks
+* consistent lock ordering
+
+---
+
+## WAL
+
+Explain:
+
+> Why PostgreSQL uses write-ahead logging.
+
+And connect WAL to:
+
+```text
+Recovery
+Replication
+PITR
+Durability
+```
+
+---
+
+## VACUUM
+
+Understand:
+
+```text
+UPDATE/DELETE
+ ↓
+obsolete row versions
+ ↓
+dead tuples
+ ↓
+VACUUM
+ ↓
+space reuse / visibility maintenance
+```
+
+---
+
+## Indexes
+
+Understand the basic purpose of:
+
+```text
+B-tree
+Hash
+GIN
+GiST
+BRIN
+```
+
+You don't need specialist-level implementation knowledge.
+
+---
+
+## Planner
+
+Understand:
+
+```text
+SQL
+ ↓
+Planner
+ ↓
+Estimated cost
+ ↓
+Execution plan
+ ↓
+Executor
+```
+
+And know how to investigate:
+
+```text
+estimated rows
+vs
+actual rows
+```
+
+---
+
+## Connection Pooling
+
+Understand:
+
+```text
+Too few connections
+→ waiting
+
+Too many connections
+→ database pressure
+```
+
+---
+
+## Backups
+
+Understand:
+
+```text
+Backup
+≠
+Backup strategy
+```
+
+A production backup strategy requires:
+
+```text
+backup
++
+storage
++
+retention
++
+security
++
+verification
++
+restore testing
+```
+
+---
+
+## Recovery
+
+Understand:
+
+```text
+Base backup
++
+WAL
+=
+PITR capability
+```
+
+And:
+
+```text
+RPO
+RTO
+```
+
+---
+
+## Replication
+
+Understand:
+
+```text
+Primary
+ ↓
+WAL
+ ↓
+Standby
+```
+
+And why:
+
+```text
+Replication ≠ Backup
+```
+
+---
+
+## Production Troubleshooting
+
+Given:
+
+> "The API is slow."
+
+You should be able to investigate systematically rather than immediately changing random database settings.
+
+---
+
+# FINAL FEYNMAN TEST
+
+Close your notes and explain these from memory.
+
+### Question 1
+
+What actually happens after an application sends:
+
+```sql
+SELECT * FROM users WHERE id = 10;
+```
+
+to PostgreSQL?
+
+---
+
+### Question 2
+
+Why does PostgreSQL need MVCC?
+
+---
+
+### Question 3
+
+What happens conceptually when an UPDATE occurs?
+
+---
+
+### Question 4
+
+Why does VACUUM exist?
+
+---
+
+### Question 5
+
+What is WAL?
+
+---
+
+### Question 6
+
+Why can a replica not replace backups?
+
+---
+
+### Question 7
+
+What happens when two transactions attempt conflicting operations?
+
+---
+
+### Question 8
+
+What is a deadlock?
+
+---
+
+### Question 9
+
+Why can too many database connections hurt performance?
+
+---
+
+### Question 10
+
+What is the difference between:
+
+```text
+EXPLAIN
+```
+
+and:
+
+```text
+EXPLAIN ANALYZE
+```
+
+---
+
+### Question 11
+
+Why can the PostgreSQL planner choose a bad execution plan?
+
+---
+
+### Question 12
+
+What does an index actually cost the database?
+
+---
+
+### Question 13
+
+Why is a successful backup not proof that your recovery strategy works?
+
+---
+
+### Question 14
+
+Explain:
+
+```text
+RPO
+RTO
+```
+
+---
+
+### Question 15
+
+Explain the complete path:
+
+```text
+API Request
+ ↓
+Connection Pool
+ ↓
+PostgreSQL
+ ↓
+Query Planner
+ ↓
+Executor
+ ↓
+Cache
+ ↓
+Storage
+ ↓
+WAL
+```
+
+in your own words.
+
+---
+
+# SPACED REPETITION
+
+## Same Day
+
+Explain:
+
+```text
+MVCC
+WAL
+VACUUM
+```
+
+without notes.
+
+---
+
+## Next Day
+
+Recreate:
+
+```text
+PostgreSQL architecture
+```
+
+from memory.
+
+---
+
+## After 3–4 Days
+
+Perform one:
+
+```text
+lock experiment
+```
+
+and one:
+
+```text
+EXPLAIN ANALYZE experiment
+```
+
+without following a tutorial.
+
+---
+
+## After 1 Week
+
+Explain:
+
+```text
+Why a PostgreSQL database can become slow
+```
+
+using at least five different possible causes.
+
+---
+
+# ENGINEERING DECISION RECORDS
+
+For this volume, create at least five small decisions.
+
+Example:
+
+```text
+Decision:
+Use connection pool size of X.
+
+Context:
+Application workload.
+
+Evidence:
+Observed connection utilization.
+
+Alternatives:
+X / Y / Z.
+
+Decision:
+X.
+
+Reason:
+Observed workload and database capacity.
+
+Trade-off:
+Higher concurrency vs database pressure.
+```
+
+This trains you to make database decisions based on evidence.
+
+---
+
+# V04 COMPLETION CRITERIA
+
+You are done with V04 when you can:
+
+* Explain PostgreSQL architecture.
+* Explain the SQL execution pipeline.
+* Understand connections and sessions.
+* Understand connection pooling.
+* Understand shared buffers and caching.
+* Understand physical storage at a useful engineering level.
+* Explain pages and tuples.
+* Explain MVCC.
+* Explain transaction isolation.
+* Diagnose blocking.
+* Explain deadlocks.
+* Explain WAL.
+* Explain crash recovery.
+* Understand checkpoints.
+* Explain VACUUM and autovacuum.
+* Understand table/index bloat conceptually.
+* Understand major PostgreSQL index types.
+* Understand planner statistics.
+* Use `EXPLAIN`.
+* Use `EXPLAIN ANALYZE`.
+* Diagnose basic query-plan problems.
+* Configure roles and least privilege.
+* Perform backup and restore.
+* Understand PITR.
+* Understand replication.
+* Understand HA concepts.
+* Understand partitioning.
+* Monitor PostgreSQL.
+* Diagnose production-style failures.
+* Connect PostgreSQL operations with backend and DevOps engineering.
+* Complete the Production PostgreSQL Lab.
+* Complete the failure injection drills.
+
+---
+
+# V04 FINAL MENTAL MODEL
+
+The entire volume can be compressed into this:
+
+```text
+                    APPLICATION
+                         │
+                         ▼
+                 CONNECTION POOL
+                         │
+                         ▼
+                   POSTGRESQL
+                         │
+              ┌──────────┴──────────┐
+              ▼                     ▼
+           PLANNER               TRANSACTION
+              │                     │
+              ▼                     ▼
+          EXECUTOR                 MVCC
+              │                     │
+              ├──────────┐          ▼
+              ▼          ▼        LOCKS
+           CACHE      INDEXES        │
+              │          │           │
+              └────┬─────┘           │
+                   ▼                 │
+                STORAGE ◄────────────┘
+                   │
+                   ▼
+                  WAL
+                   │
+          ┌────────┴────────┐
+          ▼                 ▼
+      RECOVERY          REPLICATION
+          │                 │
+          ▼                 ▼
+       BACKUPS             HA
+          │
+          ▼
+       RESTORE
+```
+
+And operationally:
+
+```text
+Observe
+   ↓
+Measure
+   ↓
+Understand
+   ↓
+Change
+   ↓
+Verify
+   ↓
+Document
+```
+
+That is the database engineering mindset.
+
+---
+
+# V04 → V05 TRANSITION
+
+V01–V04 gave you a strong relational/PostgreSQL foundation:
+
+```text
+V01
+Database Fundamentals
+        ↓
+V02
+PostgreSQL + SQL
+        ↓
+V03
+Query Engineering
+        ↓
+V04
+PostgreSQL Internals + Production
+```
+
+Now we expand beyond PostgreSQL.
+
+**V05 — MongoDB, Redis & Polyglot Persistence**
+
+will teach you why different applications use different database models and how to choose between them.
+
+The progression will be:
+
+```text
+Relational
+   ↓
+Document
+   ↓
+Key-Value / Cache
+   ↓
+Polyglot Persistence
+```
+
+You will learn:
+
+* MongoDB fundamentals
+* document modeling
+* embedding vs referencing
+* MongoDB queries
+* indexes
+* aggregation
+* transactions
+* MongoDB with Node.js
+* Redis fundamentals
+* caching
+* TTL
+* sessions
+* rate limiting
+* queues and ephemeral data
+* cache invalidation
+* consistency trade-offs
+* PostgreSQL vs MongoDB vs Redis
+* choosing the right datastore
+* using multiple databases in one system
+
+The goal is not to become a specialist in every database.
+
+The goal is:
+
+> **Given a real backend/AI system, understand what data belongs where, why, and what trade-offs that decision creates.**
+
+**End of DB V04.**
