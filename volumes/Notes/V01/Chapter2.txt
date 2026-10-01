@@ -1,0 +1,15 @@
+Why can't we simply use JSON files for a production application instead of a database?
+
+The main problem with files is that as the amount of data increases, it becomes harder to manage and retrieve efficiently. Another problem is data 
+duplication. If the same data exists in multiple files, we have to update it everywhere. If we miss one file, the data becomes inconsistent. 
+Another problem is concurrency. If two users try to modify the same data at the same time, their operations can interfere with each other and produce 
+an incorrect state. Databases provide mechanisms to handle these problems.
+
+Why do we need databases? Why can't we simply use files?
+
+The main problem with files is that as the amount of data increases, it becomes harder to maintain and retrieve efficiently. One problem is searching:
+if a file contains a large number of users, finding a specific user becomes difficult. Another problem is data duplication. If multiple files contain 
+the same data, we need to update every copy, and missing one can make the data inconsistent. Concurrency is another problem because two users may try to 
+update the same data at the same time, causing their operations to interfere with each other. Failures can also leave the data in an incomplete or 
+inconsistent state. Finally, we need security because not every user should be able to modify the data, so databases provide mechanisms such as 
+authentication and authorization.

@@ -6,4 +6,9 @@ context and meaning to data, it becomes information.
 Can you give me a real-world example of data and information?
 
 172 is just a number. It could represent height, weight, or a count, but without context, we don't know what it means. When we add the context 
-"Height: 172", it becomes understandable information.
+"Height: 172", it becomes understandable information.  
+
+What is the difference between a database and a DBMS?
+
+A database is an organized collection of data that can be stored, retrieved, and modified. A DBMS is the software that manages the database and allows 
+users or applications to interact with it. It acts as an intermediary between the application and the database.

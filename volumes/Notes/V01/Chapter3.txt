@@ -1,0 +1,26 @@
+Explain these five models in your own words:
+
+Relational
+Document
+Key-Value
+Graph
+Vector   
+
+Relational: Data is organized into tables, and relationships between related data can be represented between those tables.
+
+Document: Data is represented as documents, usually in a JSON-like structure.
+
+Key-Value: Data is stored as a key and its corresponding value. We use the key to retrieve the value.
+
+Graph: The data model focuses heavily on relationships between entities, using nodes and relationships.
+
+Vector: Data is represented as vectors, which are numerical representations used for things such as semantic similarity.
+
+You're building a social media application.
+Which data model would you consider, and why?
+
+I would use a graph model because the connections between entities are as important as the entities themselves. A relational model can represent these
+relationships, but when we need to perform complex or multi-level relationship traversal, the model can become more complicated. A graph model is 
+designed specifically around relationships, so it would be a suitable choice for this type of workload.
+
+Date : 30 Sep 2026 
